@@ -1,0 +1,3 @@
+include postgres
+include redis_server
+include keycloak_server
