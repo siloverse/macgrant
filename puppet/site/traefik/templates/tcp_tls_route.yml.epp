@@ -1,0 +1,18 @@
+<%- |
+  String $route_name,
+  String $entry_point,
+  String $target
+| -%>
+tcp:
+  routers:
+    <%= $route_name %>:
+      entryPoints:
+        - <%= $entry_point %>
+      rule: "HostSNI(`*`)"
+      service: <%= $route_name %>
+
+  services:
+    <%= $route_name %>:
+      loadBalancer:
+        servers:
+          - address: "<%= $target %>"

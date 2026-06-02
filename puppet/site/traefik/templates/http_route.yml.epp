@@ -1,0 +1,33 @@
+<%- |
+  String $route_name,
+  String $hostname,
+  String $target,
+  String $entry_point,
+  Boolean $tls,
+  Boolean $insecure_skip_verify
+| -%>
+http:
+  routers:
+    <%= $route_name %>:
+      rule: "Host(`<%= $hostname %>`)"
+      entryPoints:
+        - <%= $entry_point %>
+      service: <%= $route_name %>
+<% if $tls { -%>
+      tls: {}
+<% } -%>
+
+  services:
+    <%= $route_name %>:
+      loadBalancer:
+<% if $insecure_skip_verify { -%>
+        serversTransport: <%= $route_name %>-transport
+<% } -%>
+        servers:
+          - url: "<%= $target %>"
+<% if $insecure_skip_verify { -%>
+
+  serversTransports:
+    <%= $route_name %>-transport:
+      insecureSkipVerify: true
+<% } -%>

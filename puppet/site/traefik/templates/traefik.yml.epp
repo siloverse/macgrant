@@ -1,0 +1,28 @@
+<%- |
+  String $dynamic_config_dir,
+  String $private_ip
+| -%>
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+
+  websecure:
+    address: ":443"
+
+  redis:
+    address: "<%= $private_ip %>:6379"
+
+providers:
+  file:
+    directory: "<%= $dynamic_config_dir %>"
+    watch: true
+
+log:
+  level: INFO
+
+accessLog: {}

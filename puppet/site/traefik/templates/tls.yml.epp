@@ -1,0 +1,4 @@
+tls:
+  certificates:
+    - certFile: "/etc/traefik/certs/macgrant-platform.test.crt"
+      keyFile: "/etc/traefik/certs/macgrant-platform.test.key"
