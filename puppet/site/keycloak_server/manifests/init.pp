@@ -1,13 +1,16 @@
+# Class: keycloak_server
+#
+# Manages the Keycloak server configuration and Traefik route for the Keycloak service.
 class keycloak_server {
   class { 'keycloak':
-    hostname     => "https://keycloak.${facts['macgrant_domain']}",
+    hostname         => "https://keycloak.${facts['macgrant_domain']}",
 
-    http_enabled => true,
-    http_host    => '127.0.0.1',
+    http_enabled     => true,
+    http_host        => '127.0.0.1',
 
-    configs => {
-      'http-port'              => 8443,
-      'proxy-headers'          => 'xforwarded',
+    configs          => {
+      'http-port'               => 8443,
+      'proxy-headers'           => 'xforwarded',
       'proxy-trusted-addresses' => ['127.0.0.1'],
     },
 
