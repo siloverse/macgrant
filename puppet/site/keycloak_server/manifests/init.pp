@@ -15,7 +15,7 @@ class keycloak_server {
     },
 
     db               => 'postgres',
-    db_url_host      => 'localhost',
+    db_url_host      => "postgres.${facts['macgrant_domain']}",
     db_url_port      => 5432,
     db_url_database  => 'keycloak',
     db_username      => 'keycloak_user',
