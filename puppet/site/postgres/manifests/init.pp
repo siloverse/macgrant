@@ -1,3 +1,8 @@
+# Manages the PostgreSQL server and creates application databases.
+#
+# This class configures the PostgreSQL server, enables remote connections,
+# restricts access for the postgres user, and creates databases for tinyurl
+# and keycloak with appropriate users and credentials.
 class postgres {
   class { 'postgresql::server':
     listen_addresses           => '*',
