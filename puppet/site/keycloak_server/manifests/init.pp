@@ -1,18 +1,21 @@
+# Class: keycloak_server
+#
+# Manages the Keycloak server configuration and Traefik route for the Keycloak service.
 class keycloak_server {
-  $tls_directory   = '/etc/keycloak'
-  $tls_certificate = "${tls_directory}/server.crt"
-  $tls_private_key = "${tls_directory}/server.key"
-
   class { 'keycloak':
-    hostname         => '192.168.56.10',
-    http_enabled     => false,
-    https_port       => 8443,
+    hostname         => "https://keycloak.${facts['macgrant_domain']}",
+
+    http_enabled     => true,
+    http_host        => '127.0.0.1',
+
     configs          => {
-      'https-certificate-file'     => $tls_certificate,
-      'https-certificate-key-file' => $tls_private_key,
+      'http-port'               => 8443,
+      'proxy-headers'           => 'xforwarded',
+      'proxy-trusted-addresses' => ['127.0.0.1'],
     },
+
     db               => 'postgres',
-    db_url_host      => 'localhost',
+    db_url_host      => "postgres.${facts['macgrant_domain']}",
     db_url_port      => 5432,
     db_url_database  => 'keycloak',
     db_username      => 'keycloak_user',
@@ -22,30 +25,9 @@ class keycloak_server {
     require          => Postgresql::Server::Db['keycloak'],
   }
 
-  file { $tls_directory:
-    ensure  => directory,
-    owner   => 'root',
-    group   => 'keycloak',
-    mode    => '0750',
-    require => Group['keycloak'],
-  }
-
-  file { $tls_certificate:
-    ensure  => file,
-    owner   => 'root',
-    group   => 'keycloak',
-    mode    => '0644',
-    source  => 'file:///vagrant/.local-certs/keycloak.crt',
-    require => File[$tls_directory],
-    notify  => Class['keycloak::service'];
-
-    $tls_private_key:
-    ensure  => file,
-    owner   => 'root',
-    group   => 'keycloak',
-    mode    => '0640',
-    source  => 'file:///vagrant/.local-certs/keycloak.key',
-    require => File[$tls_directory],
-    notify  => Class['keycloak::service'];
+  traefik::http_route { 'keycloak':
+    hostname => "keycloak.${facts['macgrant_domain']}",
+    target   => 'http://127.0.0.1:8443',
+    tls      => true,
   }
 }

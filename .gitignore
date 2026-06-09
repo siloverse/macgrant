@@ -3,3 +3,5 @@
 /.vagrant
 /.local-certs
 /.ai
+/.vscode
+puppet/**/.github/

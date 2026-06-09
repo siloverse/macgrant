@@ -1,0 +1,8 @@
+<%- |
+  String $vm_ip,
+  String $domain,
+| -%>
+listen-address=127.0.0.1,<%= $vm_ip %>
+bind-interfaces
+
+address=/<%= $domain %>/<%= $vm_ip %>
