@@ -4,14 +4,32 @@ Vagrant.configure("2") do |config|
 
   config.vm.network "private_network", ip: "192.168.56.10"
 
+  config.vm.provision "shell",
+    name: "certificate preflight",
+    privileged: false,
+    inline: <<~'SHELL'
+      set -euo pipefail
+
+      for certificate in \
+        /vagrant/.local-certs/macgrant-platform.test.crt \
+        /vagrant/.local-certs/macgrant-platform.test.key; do
+        if [[ ! -r "$certificate" ]]; then
+          echo "Missing required Traefik certificate: $certificate" >&2
+          echo "Generate the wildcard certificate as documented in README.md." >&2
+          exit 1
+        fi
+      done
+    SHELL
+
   config.vm.provision "shell", path: "scripts/bootstrap.sh"
   config.vm.provision "shell", path: "scripts/install-puppet-modules.sh"
   config.vm.provision "shell", path: "scripts/install-traefik.sh"
 
   config.vm.provision :puppet do |puppet|
-    puppet.manifests_path = "puppet/manifests"
-    puppet.manifest_file  = "default.pp"
-    puppet.module_path    = ["puppet/site", "puppet/modules"]
+    puppet.manifests_path    = "puppet/manifests"
+    puppet.manifest_file     = "default.pp"
+    puppet.module_path       = ["puppet/site", "puppet/modules"]
+    puppet.hiera_config_path = "hiera.yaml"
 
     puppet.facter = {
       "macgrant_domain"  => "macgrant-platform.test",
