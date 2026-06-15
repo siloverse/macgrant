@@ -1,0 +1,24 @@
+<%- |
+  String $client_address,
+  Integer $client_port,
+  String $data_dir,
+  String $admin_address,
+  Integer $admin_port,
+| -%>
+tickTime=2000
+dataDir=<%= $data_dir %>
+
+clientPort=<%= $client_port %>
+clientPortAddress=<%= $client_address %>
+maxClientCnxns=60
+
+standaloneEnabled=true
+
+autopurge.snapRetainCount=3
+autopurge.purgeInterval=24
+
+4lw.commands.whitelist=ruok,srvr,stat,mntr
+
+admin.enableServer=true
+admin.serverAddress=<%= $admin_address %>
+admin.serverPort=<%= $admin_port %>

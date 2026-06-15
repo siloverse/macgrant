@@ -13,6 +13,7 @@ profile::gateway::certificate_source_key: file:///vagrant/.local-certs/macgrant-
 profile::gateway::tcp_entry_points:
   redis: 6379
   postgres: 5432
+  zookeeper: 2181
 
 profile::postgres::hostname: postgres.macgrant-platform.test
 profile::postgres::bind: 127.0.0.1
@@ -27,3 +28,11 @@ profile::redis::route_entry_point: redis
 profile::keycloak::hostname: keycloak.macgrant-platform.test
 profile::keycloak::http_host: 127.0.0.1
 profile::keycloak::http_port: 8080
+
+profile::zookeeper::hostname: zookeeper.macgrant-platform.test
+profile::zookeeper::client_address: 127.0.0.1
+profile::zookeeper::client_port: 2181
+profile::zookeeper::data_dir: /var/lib/zookeeper
+profile::zookeeper::admin_address: 127.0.0.1
+profile::zookeeper::admin_port: 8081
+profile::zookeeper::route_entry_point: zookeeper
