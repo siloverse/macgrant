@@ -1,8 +1,8 @@
 # Macgrant Local Platform
 
 This repository provisions a disposable Ubuntu development VM with Vagrant
-and Puppet. It runs PostgreSQL, Redis, Keycloak, dnsmasq, and Traefik on the
-host-only network at `192.168.56.10`.
+and Puppet. It runs PostgreSQL, Redis, ZooKeeper, Keycloak, dnsmasq, and
+Traefik on the host-only network at `192.168.56.10`.
 
 ## Prerequisites
 
@@ -53,12 +53,20 @@ vagrant up
 
 Provisioning runs in this order:
 
-1. Check that the wildcard certificate and key exist.
-2. Install Puppet 8 when needed.
-3. Install the pinned Forge module dependencies into `puppet/modules`.
-4. Install and verify the pinned Traefik binary.
-5. Apply `puppet/manifests/default.pp`.
-6. Configure host-side split DNS after the VM starts.
+1. Configure GRUB for unattended boots.
+2. Check that the wildcard certificate and key exist.
+3. Install Puppet 8 when needed.
+4. Install the pinned Forge module dependencies into `puppet/modules`.
+5. Install and verify the pinned Traefik binary.
+6. Apply `puppet/manifests/default.pp`.
+7. Configure host-side split DNS after the VM starts.
+
+Vagrant allows up to 10 minutes for the VM to boot. The GRUB provisioner
+selects the first Ubuntu entry, clears an existing failed-boot marker, and
+sets two-second menu and failed-boot timeouts. This prevents a previous failed
+or forced shutdown from leaving a headless `vagrant up` waiting at the GRUB
+menu. The settings are stored in
+`/etc/default/grub.d/99-vagrant-autoboot.cfg`.
 
 The VM uses:
 
@@ -78,6 +86,8 @@ Domain:      macgrant-platform.test
 | Keycloak issuer | <https://keycloak.macgrant-platform.test/realms/master> |
 | PostgreSQL | `jdbc:postgresql://postgres.macgrant-platform.test:5432/keycloak` |
 | Redis | `redis://redis.macgrant-platform.test:6379` |
+| ZooKeeper | `zookeeper.macgrant-platform.test:2181` |
+| ZooKeeper AdminServer | <https://zookeeper.macgrant-platform.test/commands> |
 
 Keycloak uses edge TLS termination:
 
@@ -85,8 +95,8 @@ Keycloak uses edge TLS termination:
 client -> HTTPS :443 -> Traefik -> HTTP 127.0.0.1:8080 -> Keycloak
 ```
 
-PostgreSQL and Redis remain bound to loopback. Traefik deliberately exposes
-their native TCP ports only on the VM's host-only address:
+PostgreSQL, Redis, and ZooKeeper remain bound to loopback. Traefik deliberately
+exposes their native TCP ports only on the VM's host-only address:
 
 ```text
 postgres.macgrant-platform.test:5432
@@ -96,11 +106,17 @@ postgres.macgrant-platform.test:5432
 redis.macgrant-platform.test:6379
   -> 192.168.56.10:6379 (Traefik)
   -> 127.0.0.1:6379 (Redis)
+
+zookeeper.macgrant-platform.test:2181
+  -> 192.168.56.10:2181 (Traefik)
+  -> 127.0.0.1:2181 (ZooKeeper)
 ```
 
 This keeps the services off the VM's other interfaces while preserving native
-PostgreSQL and Redis client protocols. Inside the VM, `/etc/hosts` maps both
-service names to `127.0.0.1`, so local clients bypass Traefik.
+PostgreSQL, Redis, and ZooKeeper client protocols. ZooKeeper's AdminServer also
+stays on loopback at `127.0.0.1:8081`; Traefik exposes it as trusted HTTPS at
+the AdminServer endpoint above. Inside the VM, `/etc/hosts` maps the service
+names to `127.0.0.1`, so local clients bypass Traefik.
 
 ## DNS
 
@@ -129,13 +145,14 @@ The entry manifest contains only:
 include role::platform
 ```
 
-`role::platform` contains five profiles:
+`role::platform` contains six profiles:
 
 - `profile::dns`
 - `profile::gateway`
 - `profile::postgres`
 - `profile::redis`
 - `profile::keycloak`
+- `profile::zookeeper`
 
 Profiles compose Forge modules and declare each service's routing intent.
 The generic `traefik` module owns the gateway user, directories, certificates,
@@ -280,7 +297,7 @@ Check VM and service status:
 ```bash
 vagrant status
 vagrant ssh -c \
-  "systemctl is-active dnsmasq postgresql redis keycloak traefik"
+  "systemctl is-active dnsmasq postgresql redis zookeeper keycloak traefik"
 ```
 
 Check DNS:
@@ -297,6 +314,7 @@ curl -I https://keycloak.macgrant-platform.test
 curl -fsS \
   https://keycloak.macgrant-platform.test/realms/master/.well-known/openid-configuration |
   jq -r .issuer
+curl -fsS https://zookeeper.macgrant-platform.test/commands/ruok
 ```
 
 Inspect Traefik:
