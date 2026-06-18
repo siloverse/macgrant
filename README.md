@@ -118,6 +118,28 @@ stays on loopback at `127.0.0.1:8081`; Traefik exposes it as trusted HTTPS at
 the AdminServer endpoint above. Inside the VM, `/etc/hosts` maps the service
 names to `127.0.0.1`, so local clients bypass Traefik.
 
+## ZooKeeper
+
+`profile::zookeeper` configures a standalone ZooKeeper node. It installs the
+Ubuntu `zookeeperd` package and `libjetty9-java`; the managed
+`/etc/default/zookeeper` classpath enables ZooKeeper's Jetty-based AdminServer.
+Puppet manages `/etc/zookeeper/conf/zoo.cfg` and the data directory
+`/var/lib/zookeeper` (owned by `zookeeper`). It also removes the package's
+placeholder `myid` file because a standalone node has no server ID.
+
+The default configuration listens only on loopback for both the native client
+protocol (`127.0.0.1:2181`) and AdminServer HTTP (`127.0.0.1:8081`). It keeps
+three snapshots, purges old snapshots every 24 hours, and permits only the
+`ruok`, `srvr`, `stat`, and `mntr` four-letter commands. Traefik makes the
+client protocol available at the ZooKeeper endpoint and publishes the
+AdminServer over HTTPS.
+
+For a quick health check from the host:
+
+```bash
+curl -fsS https://zookeeper.macgrant-platform.test/commands/ruok
+```
+
 ## DNS
 
 The `profile::dns` class manages dnsmasq and renders
