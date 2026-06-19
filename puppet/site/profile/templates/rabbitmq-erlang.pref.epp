@@ -1,0 +1,4 @@
+<%- | String[1] $version_pattern | -%>
+Package: erlang*
+Pin: version <%= $version_pattern %>
+Pin-Priority: 1001

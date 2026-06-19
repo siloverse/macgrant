@@ -8,5 +8,7 @@ defaults:
 hierarchy:
   - name: Vagrant
     path: vagrant.yaml
+  - name: Versions
+    path: versions.yaml
   - name: Common
     path: common.yaml

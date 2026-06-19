@@ -6,9 +6,11 @@ class role::platform {
   contain profile::redis
   contain profile::keycloak
   contain profile::zookeeper
+  contain profile::rabbitmq
 
   Class['profile::gateway'] -> Class['profile::postgres']
   Class['profile::gateway'] -> Class['profile::redis']
   Class['profile::gateway'] -> Class['profile::zookeeper']
+  Class['profile::gateway'] -> Class['profile::rabbitmq']
   Class['profile::postgres'] -> Class['profile::keycloak']
 }
