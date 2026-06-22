@@ -1,8 +1,8 @@
 # Macgrant Local Platform
 
 This repository provisions a disposable Ubuntu development VM with Vagrant
-and Puppet. It runs PostgreSQL, Redis, ZooKeeper, Keycloak, dnsmasq, and
-Traefik on the host-only network at `192.168.56.10`.
+and Puppet. It runs PostgreSQL, Redis, ZooKeeper, RabbitMQ, Keycloak, dnsmasq,
+and Traefik on the host-only network at `192.168.56.10`.
 
 ## Prerequisites
 
@@ -88,6 +88,8 @@ Domain:      macgrant-platform.test
 | Redis | `redis://redis.macgrant-platform.test:6379` |
 | ZooKeeper | `zookeeper.macgrant-platform.test:2181` |
 | ZooKeeper AdminServer | <https://zookeeper.macgrant-platform.test/commands> |
+| RabbitMQ AMQP | `amqp://admin:admin@rabbitmq.macgrant-platform.test:5672/macgrant` |
+| RabbitMQ management | <https://rabbitmq.macgrant-platform.test> |
 
 Keycloak uses edge TLS termination:
 
@@ -110,13 +112,18 @@ redis.macgrant-platform.test:6379
 zookeeper.macgrant-platform.test:2181
   -> 192.168.56.10:2181 (Traefik)
   -> 127.0.0.1:2181 (ZooKeeper)
+
+rabbitmq.macgrant-platform.test:5672
+  -> 192.168.56.10:5672 (Traefik)
+  -> 127.0.0.1:5672 (RabbitMQ)
 ```
 
-This keeps the services off the VM's other interfaces while preserving native
-PostgreSQL, Redis, and ZooKeeper client protocols. ZooKeeper's AdminServer also
-stays on loopback at `127.0.0.1:8081`; Traefik exposes it as trusted HTTPS at
-the AdminServer endpoint above. Inside the VM, `/etc/hosts` maps the service
-names to `127.0.0.1`, so local clients bypass Traefik.
+This keeps the services off the VM's other interfaces while preserving their
+native client protocols. ZooKeeper's AdminServer stays on loopback at
+`127.0.0.1:8081`, and RabbitMQ's management UI stays on loopback at
+`127.0.0.1:15672`; Traefik exposes both as trusted HTTPS at the endpoints
+above. Inside the VM, `/etc/hosts` maps the service names to `127.0.0.1`, so
+local clients bypass Traefik.
 
 ## ZooKeeper
 
@@ -139,6 +146,24 @@ For a quick health check from the host:
 ```bash
 curl -fsS https://zookeeper.macgrant-platform.test/commands/ruok
 ```
+
+## RabbitMQ
+
+`profile::rabbitmq` installs RabbitMQ from Team RabbitMQ's `amd64` APT
+repositories. The RabbitMQ server package and Erlang package family are pinned
+to the versions declared in `data/versions.yaml`; the current defaults are
+RabbitMQ `4.3.4-1` and Erlang `1:27.*`. Puppet also enables the management
+plugin and keeps the service enabled and running.
+
+AMQP listens only on `127.0.0.1:5672`, while the management UI listens only on
+`127.0.0.1:15672`. Traefik exposes AMQP through its host-only `rabbitmq` TCP
+entry point and publishes the management UI over trusted HTTPS.
+
+The disposable development account is `admin` with password `admin`. It has
+administrator privileges and full permissions on the `macgrant` vhost. Puppet
+removes RabbitMQ's default `guest` account after configuring this account.
+Change the values under `profile::rabbitmq` in `data/common.yaml` if different
+local credentials or a different vhost are required.
 
 ## DNS
 
@@ -167,7 +192,7 @@ The entry manifest contains only:
 include role::platform
 ```
 
-`role::platform` contains six profiles:
+`role::platform` contains seven profiles:
 
 - `profile::dns`
 - `profile::gateway`
@@ -175,15 +200,17 @@ include role::platform
 - `profile::redis`
 - `profile::keycloak`
 - `profile::zookeeper`
+- `profile::rabbitmq`
 
 Profiles compose Forge modules and declare each service's routing intent.
 The generic `traefik` module owns the gateway user, directories, certificates,
 static configuration, dynamic-route format, systemd unit, and service.
 
-Environment values live in `data/vagrant.yaml`; intentionally committed
-disposable-development credentials live in `data/common.yaml`. Vagrant 2.4
-uploads `hiera.yaml` for the Puppet provisioner, so its data directory points
-at the shared `/vagrant/data` directory.
+Environment values live in `data/vagrant.yaml`; pinned package versions live
+in `data/versions.yaml`; intentionally committed disposable-development
+credentials live in `data/common.yaml`. Vagrant 2.4 uploads `hiera.yaml` for
+the Puppet provisioner, so its data directory points at the shared
+`/vagrant/data` directory.
 
 Downloaded Forge modules are separate from site code:
 
