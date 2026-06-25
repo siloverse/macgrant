@@ -1,8 +1,8 @@
 # Macgrant Local Platform
 
 This repository provisions a disposable Ubuntu development VM with Vagrant
-and Puppet. It runs PostgreSQL, Redis, ZooKeeper, RabbitMQ, Keycloak, dnsmasq,
-and Traefik on the host-only network at `192.168.56.10`.
+and Puppet. It runs PostgreSQL, Redis, ZooKeeper, RabbitMQ, Keycloak, Tempo,
+dnsmasq, and Traefik on the host-only network at `192.168.56.10`.
 
 ## Prerequisites
 
@@ -76,6 +76,8 @@ Hostname:    macgrant-platform
 VM IP:       192.168.56.10
 Host IP:     192.168.56.1
 Domain:      macgrant-platform.test
+CPUs:        2
+Memory:      6144 MB
 ```
 
 ## Service Endpoints
@@ -125,6 +127,15 @@ native client protocols. ZooKeeper's AdminServer stays on loopback at
 above. Inside the VM, `/etc/hosts` maps the service names to `127.0.0.1`, so
 local clients bypass Traefik.
 
+Tempo has no Traefik route. Its listeners stay on VM loopback and are reachable
+only from inside the VM:
+
+```text
+Tempo HTTP API   127.0.0.1:3200
+Tempo OTLP gRPC  127.0.0.1:4327
+Tempo OTLP HTTP  127.0.0.1:4328
+```
+
 ## ZooKeeper
 
 `profile::zookeeper` configures a standalone ZooKeeper node. It installs the
@@ -165,6 +176,43 @@ removes RabbitMQ's default `guest` account after configuring this account.
 Change the values under `profile::rabbitmq` in `data/common.yaml` if different
 local credentials or a different vhost are required.
 
+## Tempo
+
+`profile::tempo` installs Grafana Tempo for distributed tracing. There is no
+APT repository for it, so the profile downloads the release `.deb` and the
+matching `SHA256SUMS` file from GitHub into `/var/cache/macgrant/packages`,
+verifies the checksum, and only then installs the package. The version is
+pinned by `profile::tempo::version` in `data/versions.yaml`; the current
+default is `3.0.2` for `linux_amd64`. The download, checksum, and verification
+steps are idempotent, so a re-provision reuses the cached package.
+
+The service runs as the system user `tempo` and uses:
+
+```text
+/etc/tempo/config.yml  rendered configuration, root:tempo 0640
+/data/tempo/wal        write-ahead log
+/data/tempo/blocks     local trace blocks
+/var/tempo             backend scheduler work path
+```
+
+The rendered configuration binds every listener to `127.0.0.1`: the HTTP API
+and internal gRPC on `3200` and `9095`, and the OTLP receivers on `4327`
+(gRPC) and `4328` (HTTP). Note that the OTLP ports are offset from the OTLP
+defaults of `4317` and `4318`, so exporters must be configured explicitly.
+Traces use the `local` storage backend with a `72h` block retention, and
+anonymous usage reporting is disabled.
+
+Applications running inside the VM export to the OTLP endpoints directly.
+Check the service from the host with:
+
+```bash
+vagrant ssh -c "curl -fsS http://127.0.0.1:3200/ready"
+vagrant ssh -c "curl -fsS http://127.0.0.1:3200/status/version"
+```
+
+Adjust the ports, directories, or retention through `profile::tempo`
+parameters in `data/vagrant.yaml`.
+
 ## DNS
 
 The `profile::dns` class manages dnsmasq and renders
@@ -192,8 +240,9 @@ The entry manifest contains only:
 include role::platform
 ```
 
-`role::platform` contains seven profiles:
+`role::platform` composes nine profiles:
 
+- `profile::common`
 - `profile::dns`
 - `profile::gateway`
 - `profile::postgres`
@@ -201,8 +250,11 @@ include role::platform
 - `profile::keycloak`
 - `profile::zookeeper`
 - `profile::rabbitmq`
+- `profile::tempo`
 
-Profiles compose Forge modules and declare each service's routing intent.
+`profile::common` installs the packages more than one profile depends on, such
+as `curl`, and is ordered before the profiles that use them. The rest compose
+Forge modules and declare each service's routing intent.
 The generic `traefik` module owns the gateway user, directories, certificates,
 static configuration, dynamic-route format, systemd unit, and service.
 
@@ -346,7 +398,8 @@ Check VM and service status:
 ```bash
 vagrant status
 vagrant ssh -c \
-  "systemctl is-active dnsmasq postgresql redis zookeeper keycloak traefik"
+  "systemctl is-active \
+    dnsmasq postgresql redis zookeeper rabbitmq-server tempo keycloak traefik"
 ```
 
 Check DNS:
