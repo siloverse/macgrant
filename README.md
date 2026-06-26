@@ -2,7 +2,8 @@
 
 This repository provisions a disposable Ubuntu development VM with Vagrant
 and Puppet. It runs PostgreSQL, Redis, ZooKeeper, RabbitMQ, Keycloak, Tempo,
-dnsmasq, and Traefik on the host-only network at `192.168.56.10`.
+OpenTelemetry Collector Contrib, dnsmasq, and Traefik on the host-only network
+at `192.168.56.10`.
 
 ## Prerequisites
 
@@ -92,6 +93,8 @@ Memory:      6144 MB
 | ZooKeeper AdminServer | <https://zookeeper.macgrant-platform.test/commands> |
 | RabbitMQ AMQP | `amqp://admin:admin@rabbitmq.macgrant-platform.test:5672/macgrant` |
 | RabbitMQ management | <https://rabbitmq.macgrant-platform.test> |
+| OTLP/HTTP | <https://otel.macgrant-platform.test/v1/traces> |
+| OTLP/gRPC | `otel.macgrant-platform.test:4317` |
 
 Keycloak uses edge TLS termination:
 
@@ -213,6 +216,90 @@ vagrant ssh -c "curl -fsS http://127.0.0.1:3200/status/version"
 Adjust the ports, directories, or retention through `profile::tempo`
 parameters in `data/vagrant.yaml`.
 
+## OpenTelemetry Collector
+
+`profile::opentelemetry_collector` installs the official `otelcol-contrib`
+Debian package from the OpenTelemetry Collector releases. The package and its
+release checksum manifest are cached under `/var/cache/macgrant/packages` and
+verified before installation. The version is pinned once in
+`data/versions.yaml`.
+
+The Collector validates Puppet's candidate configuration before replacing
+`/etc/otelcol-contrib/config.yaml`. A systemd readiness condition also prevents
+the package's bundled default configuration from starting before Puppet has
+installed the validated loopback-only configuration. The managed listeners
+are:
+
+```text
+OTLP gRPC         127.0.0.1:4317
+OTLP HTTP         127.0.0.1:4318
+Internal metrics  127.0.0.1:8888
+Health check      127.0.0.1:13133
+```
+
+Traefik terminates HTTPS for OTLP/HTTP and forwards the native OTLP/gRPC TCP
+entry point. Traces then pass through the memory limiter, resource, and batch
+processors before the Collector exports them to Tempo over insecure local
+gRPC at `127.0.0.1:4327`. The resource processor inserts
+`service.namespace=macgrant` and `deployment.environment.name=local` when the
+application has not supplied those attributes.
+
+Validate the installed service and its bindings with:
+
+```bash
+vagrant ssh -c "systemctl is-active otelcol-contrib"
+
+vagrant ssh -c \
+  "sudo -u otelcol-contrib \
+   /usr/bin/otelcol-contrib validate \
+   --config=/etc/otelcol-contrib/config.yaml"
+
+vagrant ssh -c \
+  "curl -fsS http://127.0.0.1:13133/ && echo"
+
+vagrant ssh -c \
+  "sudo ss -lntp | grep -E ':(4317|4318|8888|13133)\b'"
+```
+
+Send a unique OTLP/HTTP JSON trace through Traefik and retrieve it from Tempo:
+
+```bash
+trace_id=$(openssl rand -hex 16)
+span_id=$(openssl rand -hex 8)
+start_ns=$(date +%s%N)
+end_ns=$((start_ns + 1000000))
+
+payload=$(printf '{"resourceSpans":[{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"otel-http-smoke-test"}}]},"scopeSpans":[{"scope":{"name":"macgrant.smoke"},"spans":[{"traceId":"%s","spanId":"%s","name":"collector-http-smoke-test","kind":1,"startTimeUnixNano":"%s","endTimeUnixNano":"%s","status":{"code":1}}]}]}]}' \
+  "$trace_id" "$span_id" "$start_ns" "$end_ns")
+
+curl -fsS \
+  -H 'Content-Type: application/json' \
+  --data-binary "$payload" \
+  https://otel.macgrant-platform.test/v1/traces
+
+found=false
+for _ in $(seq 1 15); do
+  if trace_json=$(vagrant ssh -c \
+    "curl -fsS http://127.0.0.1:3200/api/traces/$trace_id" 2>/dev/null) &&
+    jq -e '
+      any(.batches[].scopeSpans[].spans[];
+        .name == "collector-http-smoke-test") and
+      any(.batches[].resource.attributes[];
+        .key == "service.namespace" and .value.stringValue == "macgrant") and
+      any(.batches[].resource.attributes[];
+        .key == "deployment.environment.name" and
+        .value.stringValue == "local")
+    ' <<<"$trace_json" >/dev/null; then
+    found=true
+    echo "Retrieved trace $trace_id from Tempo"
+    break
+  fi
+  sleep 1
+done
+
+$found || { echo "Trace $trace_id was not found in Tempo" >&2; exit 1; }
+```
+
 ## DNS
 
 The `profile::dns` class manages dnsmasq and renders
@@ -240,7 +327,7 @@ The entry manifest contains only:
 include role::platform
 ```
 
-`role::platform` composes nine profiles:
+`role::platform` composes ten profiles:
 
 - `profile::common`
 - `profile::dns`
@@ -251,6 +338,7 @@ include role::platform
 - `profile::zookeeper`
 - `profile::rabbitmq`
 - `profile::tempo`
+- `profile::opentelemetry_collector`
 
 `profile::common` installs the packages more than one profile depends on, such
 as `curl`, and is ordered before the profiles that use them. The rest compose
@@ -399,7 +487,8 @@ Check VM and service status:
 vagrant status
 vagrant ssh -c \
   "systemctl is-active \
-    dnsmasq postgresql redis zookeeper rabbitmq-server tempo keycloak traefik"
+    dnsmasq postgresql redis zookeeper rabbitmq-server tempo \
+    otelcol-contrib keycloak traefik"
 ```
 
 Check DNS:

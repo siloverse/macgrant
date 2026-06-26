@@ -15,6 +15,7 @@ profile::gateway::tcp_entry_points:
   postgres: 5432
   zookeeper: 2181
   rabbitmq: 5672
+  otel_grpc: 4317
 
 profile::postgres::hostname: postgres.macgrant-platform.test
 profile::postgres::bind: 127.0.0.1
@@ -46,3 +47,10 @@ profile::rabbitmq::route_entry_point: rabbitmq
 
 profile::rabbitmq::management_address: 127.0.0.1
 profile::rabbitmq::management_port: 15672
+
+profile::opentelemetry_collector::hostname: otel.macgrant-platform.test
+profile::opentelemetry_collector::listen_address: 127.0.0.1
+profile::opentelemetry_collector::otlp_grpc_port: 4317
+profile::opentelemetry_collector::otlp_http_port: 4318
+profile::opentelemetry_collector::grpc_route_entry_point: otel_grpc
+profile::opentelemetry_collector::tempo_endpoint: 127.0.0.1:4327

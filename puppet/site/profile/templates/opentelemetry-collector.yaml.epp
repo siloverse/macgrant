@@ -1,0 +1,76 @@
+<%- |
+  String $listen_address,
+  Integer $otlp_grpc_port,
+  Integer $otlp_http_port,
+  String $health_address,
+  Integer $health_port,
+  String $metrics_address,
+  Integer $metrics_port,
+  String $tempo_endpoint,
+  Integer $memory_limit_mib,
+  Integer $memory_spike_limit_mib
+| -%>
+extensions:
+  health_check:
+    endpoint: "<%= $health_address %>:<%= $health_port %>"
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: "<%= $listen_address %>:<%= $otlp_grpc_port %>"
+
+      http:
+        endpoint: "<%= $listen_address %>:<%= $otlp_http_port %>"
+
+processors:
+  memory_limiter:
+    check_interval: 5s
+    limit_mib: <%= $memory_limit_mib %>
+    spike_limit_mib: <%= $memory_spike_limit_mib %>
+
+  resource:
+    attributes:
+      - key: service.namespace
+        value: macgrant
+        action: insert
+
+      - key: deployment.environment.name
+        value: local
+        action: insert
+
+  batch:
+    timeout: 1s
+    send_batch_size: 512
+    send_batch_max_size: 1024
+
+exporters:
+  otlp_grpc/tempo:
+    endpoint: "<%= $tempo_endpoint %>"
+    tls:
+      insecure: true
+
+service:
+  extensions:
+    - health_check
+
+  telemetry:
+    metrics:
+      readers:
+        - pull:
+            exporter:
+              prometheus:
+                host: "<%= $metrics_address %>"
+                port: <%= $metrics_port %>
+
+  pipelines:
+    traces:
+      receivers:
+        - otlp
+      processors:
+        - memory_limiter
+        - resource
+        - batch
+
+      exporters:
+        - otlp_grpc/tempo
