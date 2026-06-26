@@ -2,8 +2,8 @@
 
 This repository provisions a disposable Ubuntu development VM with Vagrant
 and Puppet. It runs PostgreSQL, Redis, ZooKeeper, RabbitMQ, Keycloak, Tempo,
-OpenTelemetry Collector Contrib, dnsmasq, and Traefik on the host-only network
-at `192.168.56.10`.
+Grafana, OpenTelemetry Collector Contrib, dnsmasq, and Traefik on the host-only
+network at `192.168.56.10`.
 
 ## Prerequisites
 
@@ -93,6 +93,7 @@ Memory:      6144 MB
 | ZooKeeper AdminServer | <https://zookeeper.macgrant-platform.test/commands> |
 | RabbitMQ AMQP | `amqp://admin:admin@rabbitmq.macgrant-platform.test:5672/macgrant` |
 | RabbitMQ management | <https://rabbitmq.macgrant-platform.test> |
+| Grafana | <https://grafana.macgrant-platform.test> |
 | OTLP/HTTP | <https://otel.macgrant-platform.test/v1/traces> |
 | OTLP/gRPC | `otel.macgrant-platform.test:4317` |
 
@@ -216,6 +217,37 @@ vagrant ssh -c "curl -fsS http://127.0.0.1:3200/status/version"
 Adjust the ports, directories, or retention through `profile::tempo`
 parameters in `data/vagrant.yaml`.
 
+## Grafana
+
+`profile::grafana` installs Grafana for exploring traces stored in Tempo. The
+official Debian package is downloaded into `/var/cache/macgrant/packages` and
+verified against the SHA-256 checksum pinned with its version and package
+revision in `data/versions.yaml`. The current default is Grafana `13.1.2` for
+`linux_amd64`.
+
+Grafana listens only on `127.0.0.1:3000`. Traefik publishes the browser UI at
+<https://grafana.macgrant-platform.test>, while Grafana stores its state in a
+local SQLite database with write-ahead logging under `/var/lib/grafana`.
+Anonymous access, user sign-up, and Grafana analytics and update checks are
+disabled.
+
+Puppet provisions a non-editable Tempo data source with UID `tempo`, pointing
+to Tempo's loopback HTTP API at `http://127.0.0.1:3200`. No data-source setup is
+required after signing in. The disposable development login defaults to
+`admin` with password `replace-with-local-admin-password`; change the Grafana
+credentials and 32-or-more-character secret key in `data/common.yaml` before
+using the VM.
+
+Check the service and HTTPS route from the host with:
+
+```bash
+vagrant ssh -c "systemctl is-active grafana-server"
+curl -fsS https://grafana.macgrant-platform.test/api/health
+```
+
+Adjust the hostname, listener, or Tempo URL through `profile::grafana`
+parameters in `data/vagrant.yaml`.
+
 ## OpenTelemetry Collector
 
 `profile::opentelemetry_collector` installs the official `otelcol-contrib`
@@ -327,7 +359,7 @@ The entry manifest contains only:
 include role::platform
 ```
 
-`role::platform` composes ten profiles:
+`role::platform` composes eleven profiles:
 
 - `profile::common`
 - `profile::dns`
@@ -339,6 +371,7 @@ include role::platform
 - `profile::rabbitmq`
 - `profile::tempo`
 - `profile::opentelemetry_collector`
+- `profile::grafana`
 
 `profile::common` installs the packages more than one profile depends on, such
 as `curl`, and is ordered before the profiles that use them. The rest compose
@@ -476,6 +509,7 @@ These credentials are committed only for the disposable local VM:
 | Redis | - | `secret` |
 | Keycloak database | `keycloak_user` | `keycloak_password` |
 | TinyURL database | `tinyurl_user` | `tinyurl_password` |
+| Grafana | `admin` | `replace-with-local-admin-password` |
 
 Do not reuse them outside local development.
 
@@ -488,7 +522,7 @@ vagrant status
 vagrant ssh -c \
   "systemctl is-active \
     dnsmasq postgresql redis zookeeper rabbitmq-server tempo \
-    otelcol-contrib keycloak traefik"
+    otelcol-contrib grafana-server keycloak traefik"
 ```
 
 Check DNS:
@@ -506,6 +540,7 @@ curl -fsS \
   https://keycloak.macgrant-platform.test/realms/master/.well-known/openid-configuration |
   jq -r .issuer
 curl -fsS https://zookeeper.macgrant-platform.test/commands/ruok
+curl -fsS https://grafana.macgrant-platform.test/api/health
 ```
 
 Inspect Traefik:

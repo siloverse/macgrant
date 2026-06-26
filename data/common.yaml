@@ -19,3 +19,7 @@ profile::keycloak::db_name: keycloak
 profile::rabbitmq::username: admin
 profile::rabbitmq::password: admin
 profile::rabbitmq::vhost: macgrant
+
+profile::grafana::admin_user: admin
+profile::grafana::admin_password: replace-with-local-admin-password
+profile::grafana::secret_key: replace-with-32-or-more-characters

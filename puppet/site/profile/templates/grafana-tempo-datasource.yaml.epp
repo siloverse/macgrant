@@ -1,0 +1,17 @@
+<%- |
+  String $tempo_url
+| -%>
+apiVersion: 1
+
+datasources:
+  - name: Tempo
+    uid: tempo
+    type: tempo
+    access: proxy
+    url: <%= $tempo_url %>
+    basicAuth: false
+    isDefault: false
+    editable: false
+
+    jsonData:
+      httpMethod: GET
