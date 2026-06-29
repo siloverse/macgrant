@@ -16,6 +16,9 @@ class profile::prometheus (
   String[1] $retention_time = '7d',
   String[1] $retention_size = '2GB',
 
+  Stdlib::IP::Address $node_exporter_address = '127.0.0.1',
+  Stdlib::Port $node_exporter_port = 9100,
+
   Stdlib::IP::Address $collector_metrics_address = '127.0.0.1',
   Stdlib::Port $collector_metrics_port = 8888,
 
@@ -159,6 +162,8 @@ class profile::prometheus (
       'evaluation_interval'      => $evaluation_interval,
       'retention_time'           => $retention_time,
       'retention_size'           => $retention_size,
+      'node_exporter_address'     => $node_exporter_address,
+      'node_exporter_port'        => $node_exporter_port,
       'collector_metrics_address' => $collector_metrics_address,
       'collector_metrics_port'   => $collector_metrics_port,
       'tempo_metrics_address'    => $tempo_metrics_address,

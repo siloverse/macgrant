@@ -11,3 +11,6 @@ profile::grafana::sha256: "3ba6a81a7a4b1832791457058ce07551df94c3979f544bff4db88
 
 profile::prometheus::version: 3.13.2
 profile::prometheus::sha256: "0e8c4d46101bd025ea8265e377d2caabc57f488fc1be1c367f37db69ea41be6f"
+
+profile::node_exporter::version: 1.12.1
+profile::node_exporter::sha256: "b51d8a76aa2a9156a55d501aca6276fae09e262259a5e4e831d2c2222f084e63"

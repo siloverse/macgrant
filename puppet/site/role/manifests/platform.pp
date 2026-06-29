@@ -8,10 +8,11 @@ class role::platform {
   contain profile::keycloak
   contain profile::zookeeper
   contain profile::rabbitmq
-  include profile::tempo
+  contain profile::tempo
   contain profile::opentelemetry_collector
-  contain profile::grafana
+  contain profile::node_exporter
   contain profile::prometheus
+  contain profile::grafana
 
   Class['profile::common'] -> Class['profile::rabbitmq']
   Class['profile::common'] -> Class['profile::tempo']
@@ -21,9 +22,10 @@ class role::platform {
   Class['profile::gateway'] -> Class['profile::rabbitmq']
   Class['profile::gateway'] -> Class['profile::opentelemetry_collector']
   Class['profile::postgres'] -> Class['profile::keycloak']
+
   Class['profile::tempo'] -> Class['profile::opentelemetry_collector']
-  Class['profile::tempo'] -> Class['profile::grafana']
-  Class['profile::opentelemetry_collector'] -> Class['profile::prometheus']
   Class['profile::tempo'] -> Class['profile::prometheus']
+  Class['profile::opentelemetry_collector'] -> Class['profile::prometheus']
+  Class['profile::node_exporter'] -> Class['profile::prometheus']
   Class['profile::prometheus'] -> Class['profile::grafana']
 }
