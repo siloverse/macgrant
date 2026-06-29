@@ -2,8 +2,8 @@
 
 This repository provisions a disposable Ubuntu development VM with Vagrant
 and Puppet. It runs PostgreSQL, Redis, ZooKeeper, RabbitMQ, Keycloak, Tempo,
-OpenTelemetry Collector Contrib, Prometheus Node Exporter, Prometheus, Grafana,
-dnsmasq, and Traefik on the host-only network at `192.168.56.10`.
+Loki, OpenTelemetry Collector Contrib, Prometheus Node Exporter, Prometheus,
+Grafana, dnsmasq, and Traefik on the host-only network at `192.168.56.10`.
 
 ## Prerequisites
 
@@ -95,7 +95,8 @@ Memory:      6144 MB
 | RabbitMQ management | <https://rabbitmq.macgrant-platform.test> |
 | Prometheus | <https://prometheus.macgrant-platform.test> |
 | Grafana | <https://grafana.macgrant-platform.test> |
-| OTLP/HTTP | <https://otel.macgrant-platform.test/v1/traces> |
+| OTLP/HTTP traces | <https://otel.macgrant-platform.test/v1/traces> |
+| OTLP/HTTP logs | <https://otel.macgrant-platform.test/v1/logs> |
 | OTLP/gRPC | `otel.macgrant-platform.test:4317` |
 
 Keycloak uses edge TLS termination:
@@ -140,6 +141,9 @@ Tempo HTTP API   127.0.0.1:3200
 Tempo OTLP gRPC  127.0.0.1:4327
 Tempo OTLP HTTP  127.0.0.1:4328
 ```
+
+Loki is also an internal backend with no Traefik route. Its HTTP and internal
+gRPC listeners bind only to `127.0.0.1:3100` and `127.0.0.1:9096`.
 
 ## ZooKeeper
 
@@ -218,13 +222,42 @@ vagrant ssh -c "curl -fsS http://127.0.0.1:3200/status/version"
 Adjust the ports, directories, or retention through `profile::tempo`
 parameters in `data/vagrant.yaml`.
 
+## Loki
+
+`profile::loki` installs Grafana Loki in single-binary mode from the official
+Linux ZIP archive. The archive is downloaded through a temporary file, checked
+against the SHA-256 digest pinned beside the version in `data/versions.yaml`,
+and cached under `/var/cache/macgrant/packages`. The verified binary is
+extracted to the versioned `/opt/loki-3.7.5` directory and exposed through the
+stable `/usr/local/bin/loki` symlink.
+
+Loki runs as the dedicated `loki` system user. Puppet validates candidate
+configuration changes before replacing `/etc/loki/loki.yml`, manages the
+systemd unit, and keeps all writable state below `/var/lib/loki`. Logs use the
+local filesystem, the TSDB `v13` schema, and seven-day retention. Analytics and
+authentication are disabled for this loopback-only local backend.
+
+Check the service, configuration, readiness, and listeners from the host:
+
+```bash
+vagrant ssh -c "systemctl is-enabled loki && systemctl is-active loki"
+vagrant ssh -c "/usr/local/bin/loki -version"
+vagrant ssh -c \
+  "sudo -u loki /usr/local/bin/loki \
+   -verify-config -config.file=/etc/loki/loki.yml"
+vagrant ssh -c "curl -fsS http://127.0.0.1:3100/ready && echo"
+vagrant ssh -c \
+  "sudo ss -lntp | grep -E ':(3100|9096)\b'"
+```
+
 ## Grafana
 
-`profile::grafana` installs Grafana for exploring metrics from Prometheus and
-traces stored in Tempo. The official Debian package is downloaded into
-`/var/cache/macgrant/packages` and verified against the SHA-256 checksum pinned
-with its version and package revision in `data/versions.yaml`. The current
-default is Grafana `13.1.2` for `linux_amd64`.
+`profile::grafana` installs Grafana for exploring metrics from Prometheus,
+traces stored in Tempo, and logs stored in Loki. The official Debian package
+is downloaded into `/var/cache/macgrant/packages` and verified against the
+SHA-256 checksum pinned with its version and package revision in
+`data/versions.yaml`. The current default is Grafana `13.1.2` for
+`linux_amd64`.
 
 Grafana listens only on `127.0.0.1:3000`. Traefik publishes the browser UI at
 <https://grafana.macgrant-platform.test>, while Grafana stores its state in a
@@ -232,13 +265,15 @@ local SQLite database with write-ahead logging under `/var/lib/grafana`.
 Anonymous access, user sign-up, and Grafana analytics and update checks are
 disabled.
 
-Puppet provisions two non-editable data sources, so no data-source setup is
+Puppet provisions three non-editable data sources, so no data-source setup is
 required after signing in:
 
 - Prometheus is the default data source, has UID `prometheus`, and uses
   `http://127.0.0.1:9090` with a `15s` scrape interval.
 - Tempo has UID `tempo` and uses its loopback HTTP API at
   `http://127.0.0.1:3200`.
+- Loki has UID `loki` and uses its loopback HTTP API at
+  `http://127.0.0.1:3100`.
 
 The disposable development login defaults to `admin` with password
 `replace-with-local-admin-password`; change the Grafana credentials and
@@ -276,11 +311,13 @@ Health check      127.0.0.1:13133
 ```
 
 Traefik terminates HTTPS for OTLP/HTTP and forwards the native OTLP/gRPC TCP
-entry point. Traces then pass through the memory limiter, resource, and batch
+entry point. Traces pass through the memory limiter, resource, and batch
 processors before the Collector exports them to Tempo over insecure local
-gRPC at `127.0.0.1:4327`. The resource processor inserts
-`service.namespace=macgrant` and `deployment.environment.name=local` when the
-application has not supplied those attributes.
+gRPC at `127.0.0.1:4327`. Logs pass through the same processors and are sent
+to Loki's native OTLP endpoint at `http://127.0.0.1:3100/otlp`. The resource
+processor inserts `service.namespace=macgrant` and
+`deployment.environment.name=local` when the application has not supplied
+those attributes.
 
 Validate the installed service and its bindings with:
 
@@ -338,6 +375,42 @@ done
 $found || { echo "Trace $trace_id was not found in Tempo" >&2; exit 1; }
 ```
 
+Send an OTLP/HTTP log through Traefik and retrieve it directly from Loki:
+
+```bash
+log_time_ns=$(date +%s%N)
+payload=$(printf '{"resourceLogs":[{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"macgrant-log-smoke-test"}}]},"scopeLogs":[{"scope":{"name":"macgrant.smoke"},"logRecords":[{"timeUnixNano":"%s","severityNumber":9,"severityText":"INFO","body":{"stringValue":"loki-collector-smoke-test"}}]}]}]}' \
+  "$log_time_ns")
+
+curl -fsS \
+  -H 'Content-Type: application/json' \
+  --data-binary "$payload" \
+  https://otel.macgrant-platform.test/v1/logs
+
+found=false
+for _ in $(seq 1 15); do
+  query_json=$(vagrant ssh -c \
+    "curl -fsSG \
+     --data-urlencode 'query={service_name=\"macgrant-log-smoke-test\"} |= \"loki-collector-smoke-test\"' \
+     --data-urlencode 'limit=20' \
+     http://127.0.0.1:3100/loki/api/v1/query_range" 2>/dev/null)
+
+  if jq -e '
+    .status == "success" and
+    ([.data.result[].values[] |
+      select(.[1] | contains("loki-collector-smoke-test"))] | length > 0)
+  ' <<<"$query_json" >/dev/null; then
+    found=true
+    echo "Retrieved log from Loki"
+    jq '.data.result' <<<"$query_json"
+    break
+  fi
+  sleep 1
+done
+
+$found || { echo "Log was not found in Loki" >&2; exit 1; }
+```
+
 ## Prometheus Node Exporter
 
 `profile::node_exporter` installs Prometheus Node Exporter from the official
@@ -383,7 +456,8 @@ The web and metrics listener binds only to `127.0.0.1:9090`. Traefik publishes
 the UI at <https://prometheus.macgrant-platform.test>. Every 15 seconds,
 Prometheus scrapes itself, Node Exporter metrics on `127.0.0.1:9100`,
 OpenTelemetry Collector metrics on `127.0.0.1:8888`, Tempo metrics on
-`127.0.0.1:3200`, and Grafana metrics on `127.0.0.1:3000`. The configuration
+`127.0.0.1:3200`, Loki metrics on `127.0.0.1:3100`, and Grafana metrics on
+`127.0.0.1:3000`. The configuration
 adds `platform=macgrant` and `environment=local` external labels and a
 `component` label to each target. The Node Exporter target also receives the
 label `node=macgrant-platform`.
@@ -427,7 +501,7 @@ The entry manifest contains only:
 include role::platform
 ```
 
-`role::platform` composes thirteen profiles:
+`role::platform` composes fourteen profiles:
 
 - `profile::common`
 - `profile::dns`
@@ -438,17 +512,18 @@ include role::platform
 - `profile::zookeeper`
 - `profile::rabbitmq`
 - `profile::tempo`
+- `profile::loki`
 - `profile::opentelemetry_collector`
 - `profile::node_exporter`
 - `profile::prometheus`
 - `profile::grafana`
 
 `profile::common` installs the packages more than one profile depends on, such
-as `curl`, and is ordered before the profiles that use them. The observability
-services are ordered so Tempo precedes OpenTelemetry Collector, both the
-Collector and Node Exporter precede Prometheus, and Prometheus precedes
-Grafana. The rest compose Forge modules and declare each service's routing
-intent.
+as `curl` and `unzip`, and is ordered before the profiles that use them. The
+observability services are ordered so Tempo and Loki precede the Collector;
+Tempo, Loki, the Collector, and Node Exporter precede Prometheus; and Loki and
+Prometheus precede Grafana. The rest compose Forge modules and declare each
+service's routing intent.
 The generic `traefik` module owns the gateway user, directories, certificates,
 static configuration, dynamic-route format, systemd unit, and service.
 
@@ -595,7 +670,7 @@ vagrant status
 vagrant ssh -c \
   "systemctl is-active \
     dnsmasq postgresql redis zookeeper rabbitmq-server tempo \
-    otelcol-contrib node_exporter prometheus grafana-server keycloak traefik"
+    loki otelcol-contrib node_exporter prometheus grafana-server keycloak traefik"
 ```
 
 Check DNS:

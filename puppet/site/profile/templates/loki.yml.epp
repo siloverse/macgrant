@@ -1,0 +1,62 @@
+<%- |
+  String $http_address,
+  Integer $http_port,
+  String $grpc_address,
+  Integer $grpc_port,
+  String $retention_period,
+  String $data_dir,
+  String $chunks_dir,
+  String $rules_dir,
+  String $compactor_dir
+| -%>
+auth_enabled: false
+
+server:
+  http_listen_address: "<%= $http_address %>"
+  http_listen_port: <%= $http_port %>
+  grpc_listen_address: "<%= $grpc_address %>"
+  grpc_listen_port: <%= $grpc_port %>
+
+common:
+  instance_addr: "<%= $http_address %>"
+  path_prefix: <%= $data_dir %>
+  storage:
+    filesystem:
+      chunks_directory: <%= $chunks_dir %>
+      rules_directory: <%= $rules_dir %>
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+
+query_range:
+  results_cache:
+    cache:
+      embedded_cache:
+        enabled: true
+        max_size_mb: 100
+
+limits_config:
+  allow_structured_metadata: true
+  retention_period: <%= $retention_period %>
+
+schema_config:
+  configs:
+    - from: "2024-01-01"
+      store: tsdb
+      object_store: filesystem
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+compactor:
+  working_directory: <%= $compactor_dir %>
+  compaction_interval: 10m
+  retention_enabled: true
+  retention_delete_delay: 2h
+  retention_delete_worker_count: 10
+  delete_request_store: filesystem
+
+analytics:
+  reporting_enabled: false

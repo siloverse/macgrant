@@ -54,11 +54,19 @@ profile::opentelemetry_collector::otlp_grpc_port: 4317
 profile::opentelemetry_collector::otlp_http_port: 4318
 profile::opentelemetry_collector::grpc_route_entry_point: otel_grpc
 profile::opentelemetry_collector::tempo_endpoint: 127.0.0.1:4327
+profile::opentelemetry_collector::loki_endpoint: http://127.0.0.1:3100/otlp
+
+profile::loki::http_address: 127.0.0.1
+profile::loki::http_port: 3100
+profile::loki::grpc_address: 127.0.0.1
+profile::loki::grpc_port: 9096
+profile::loki::retention_period: 168h
 
 profile::grafana::hostname: grafana.macgrant-platform.test
 profile::grafana::http_address: 127.0.0.1
 profile::grafana::http_port: 3000
 profile::grafana::tempo_url: http://127.0.0.1:3200
+profile::grafana::loki_url: http://127.0.0.1:3100
 profile::grafana::prometheus_url: http://127.0.0.1:9090
 profile::grafana::prometheus_scrape_interval: 15s
 
@@ -69,6 +77,8 @@ profile::prometheus::retention_time: 7d
 profile::prometheus::retention_size: 2GB
 profile::prometheus::node_exporter_address: 127.0.0.1
 profile::prometheus::node_exporter_port: 9100
+profile::prometheus::loki_metrics_address: 127.0.0.1
+profile::prometheus::loki_metrics_port: 3100
 
 profile::node_exporter::listen_address: 127.0.0.1
 profile::node_exporter::port: 9100

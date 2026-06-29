@@ -3,6 +3,7 @@ class profile::common {
   package { [
     'curl',
     'ca-certificates',
+    'unzip',
   ]:
     ensure => installed,
   }

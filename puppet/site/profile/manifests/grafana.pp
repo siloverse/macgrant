@@ -12,6 +12,7 @@ class profile::grafana (
   Stdlib::Port $http_port = 3000,
 
   String[1] $tempo_url = 'http://127.0.0.1:3200',
+  String[1] $loki_url = 'http://127.0.0.1:3100',
 
   String[1] $admin_user = 'admin',
   String[1] $admin_password,
@@ -216,6 +217,24 @@ class profile::grafana (
     notify => Service['grafana-server'],
   }
 
+  file { "${datasources_dir}/loki.yaml":
+    ensure => file,
+    owner  => 'root',
+    group  => 'grafana',
+    mode   => '0640',
+
+    content => epp('profile/grafana-loki-datasource.yaml.epp', {
+      'loki_url' => $loki_url,
+    }),
+
+    require => [
+      Package['grafana'],
+      File[$datasources_dir],
+    ],
+
+    notify => Service['grafana-server'],
+  }
+
   service { 'grafana-server':
     ensure => running,
     enable => true,
@@ -224,6 +243,7 @@ class profile::grafana (
       File["${config_dir}/grafana.ini"],
       File["${datasources_dir}/tempo.yaml"],
       File["${datasources_dir}/prometheus.yaml"],
+      File["${datasources_dir}/loki.yaml"],
     ],
   }
 

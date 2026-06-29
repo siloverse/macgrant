@@ -1,0 +1,47 @@
+<%- |
+  String $config_file,
+  String $data_dir
+| -%>
+[Unit]
+Description=Grafana Loki log aggregation system
+Documentation=https://grafana.com/docs/loki/latest/
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=loki
+Group=loki
+WorkingDirectory=<%= $data_dir %>
+
+ExecStart=/usr/local/bin/loki \
+  -config.file=<%= $config_file %> \
+  -target=all
+
+Restart=on-failure
+RestartSec=5s
+
+TimeoutStopSec=30s
+KillSignal=SIGTERM
+
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=<%= $data_dir %>
+
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+
+RestrictSUIDSGID=true
+RestrictRealtime=true
+RestrictNamespaces=true
+LockPersonality=true
+
+LimitNOFILE=65536
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

@@ -7,6 +7,7 @@
   String $metrics_address,
   Integer $metrics_port,
   String $tempo_endpoint,
+  String $loki_endpoint,
   Integer $memory_limit_mib,
   Integer $memory_spike_limit_mib
 | -%>
@@ -50,6 +51,9 @@ exporters:
     tls:
       insecure: true
 
+  otlphttp/loki:
+    endpoint: "<%= $loki_endpoint %>"
+
 service:
   extensions:
     - health_check
@@ -74,3 +78,14 @@ service:
 
       exporters:
         - otlp_grpc/tempo
+
+    logs:
+      receivers:
+        - otlp
+      processors:
+        - memory_limiter
+        - resource
+        - batch
+
+      exporters:
+        - otlphttp/loki
