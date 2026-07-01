@@ -579,6 +579,35 @@ Bind the host process specifically to `192.168.56.1:3000` and allow that
 host-only interface through the host firewall. Do not expose the development
 service on public interfaces.
 
+## Backend Services
+
+`profile::backend` exposes every registered backend service at
+`https://<name>.macgrant-platform.test` and forwards it to the process
+running on the development host. The registry in `data/vagrant.yaml` is the
+single source of truth for service names and ports:
+
+```yaml
+profile::backend::services:
+  auth-silo: 10001
+  user-silo: 10101
+  notification-silo: 10201
+```
+
+Each service must bind its registered port on the host-only interface and
+declare the same port in its Spring Boot `application.yml`:
+
+```yaml
+server:
+  address: 192.168.56.1
+  port: 10001
+```
+
+Services call each other through the stable gateway URLs, for example
+`https://user-silo.macgrant-platform.test`, so no caller ever configures a
+port. A registered service that is not running answers `502 Bad Gateway`
+from the gateway. Register a new service by adding one line to the registry
+and applying Puppet.
+
 ## Development Workflow
 
 Apply all provisioners:
