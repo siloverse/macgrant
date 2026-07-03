@@ -1,5 +1,6 @@
 # @summary Configures Keycloak behind the shared Traefik HTTP route.
 class profile::keycloak (
+  String[1] $version,
   Stdlib::Host $hostname,
   Stdlib::IP::Address $http_host,
   Stdlib::Port $http_port,
@@ -12,6 +13,7 @@ class profile::keycloak (
   String[1] $db_name,
 ) {
   class { 'keycloak':
+    version               => $version,
     hostname              => "https://${hostname}",
     http_enabled          => true,
     http_host             => $http_host,
