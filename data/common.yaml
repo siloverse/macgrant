@@ -1,10 +1,16 @@
 ---
 # Credentials in this file are only for the disposable local development VM.
 profile::postgres::postgres_password: '123123'
-profile::postgres::tinyurl_user: tinyurl_user
-profile::postgres::tinyurl_password: tinyurl_password
-profile::postgres::keycloak_user: keycloak_user
-profile::postgres::keycloak_password: keycloak_password
+profile::postgres::postgres_dbs:
+  keycloak:
+    username: keycloak_user
+    password: keycloak_password
+  user-silo:
+    username: user-silo
+    password: user-silo
+  notification-silo:
+    username: notification-silo
+    password: notification-silo
 
 profile::redis::password: secret
 
@@ -15,6 +21,16 @@ profile::keycloak::db_password: keycloak_password
 profile::keycloak::db_host: postgres.macgrant-platform.test
 profile::keycloak::db_port: 5432
 profile::keycloak::db_name: keycloak
+
+profile::keycloak_realm::realm: kyc
+profile::keycloak_realm::service_clients:
+  auth-silo: d63cc0f7dd2f4c3179e3e615284886e6d34f1ef9bb9a4d73
+  user-silo: da7210524a0d58bc02e690671fa179e057f8a3b84965e6ad
+  notification-silo: c47d6e21ae0ec5c9b2fb33d72075e60df7481bd09f3d7ef8
+profile::keycloak_realm::test_user: test_user
+profile::keycloak_realm::test_user_password: "123123"
+profile::keycloak_realm::test_user_firstname: Test
+profile::keycloak_realm::test_user_lastname: User
 
 profile::rabbitmq::username: admin
 profile::rabbitmq::password: admin
