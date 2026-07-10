@@ -9,7 +9,7 @@ class profile::keycloak_realm (
 ) {
   keycloak_realm { $realm:
     ensure => present,
-    roles  => ['user', 'admin'],
+    roles  => ['customer', 'employee', 'system'],
   }
 
   $service_clients.each |String $client_id, String $secret| {
@@ -24,11 +24,19 @@ class profile::keycloak_realm (
       secret                       => $secret,
       default_client_scopes        => ['basic', 'roles'],
     }
+
+    keycloak_role_mapping { "service-account-${client_id}":
+      realm       => $realm,
+      name        => "service-account-${client_id}",
+      realm_roles => ['system'],
+    }
   }
 
   exec { 'auth-silo-sa-manage-users':
-    command => "/opt/keycloak/bin/kcadm-wrapper.sh add-roles -r ${realm} --uusername service-account-auth-silo --cclientid realm-management --rolename manage-users",
-    unless  => "/opt/keycloak/bin/kcadm-wrapper.sh get-roles -r ${realm} --uusername service-account-auth-silo --cclientid realm-management | grep -q manage-users",
+    command => "/opt/keycloak/bin/kcadm-wrapper.sh add-roles -r ${realm}
+       --uusername service-account-auth-silo --cclientid realm-management --rolename manage-users",
+    unless  => "/opt/keycloak/bin/kcadm-wrapper.sh get-roles -r ${realm}
+       --uusername service-account-auth-silo --cclientid realm-management | grep -q manage-users",
     require => Keycloak_client['auth-silo'],
   }
 
@@ -52,7 +60,7 @@ class profile::keycloak_realm (
         'email'         => "${test_user}@macgrant-platform.test",
         'emailVerified' => true,
         'credentials'   => [{ 'type' => 'password', 'value' => $test_user_password, 'temporary' => false }],
-        'realmRoles'    => ['user'],
+        'realmRoles'    => ['customer'],
         'firstName'     => $test_user_firstname,
         'lastName'      => $test_user_lastname,
       }],
