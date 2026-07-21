@@ -32,11 +32,18 @@ class profile::keycloak_realm (
     }
   }
 
+
   exec { 'auth-silo-sa-manage-users':
-    command => "/opt/keycloak/bin/kcadm-wrapper.sh add-roles -r ${realm}
-       --uusername service-account-auth-silo --cclientid realm-management --rolename manage-users",
-    unless  => "/opt/keycloak/bin/kcadm-wrapper.sh get-roles -r ${realm}
-       --uusername service-account-auth-silo --cclientid realm-management | grep -q manage-users",
+    command => join([
+      '/opt/keycloak/bin/kcadm-wrapper.sh add-roles', "-r ${realm}",
+      '--uusername service-account-auth-silo',
+      '--cclientid realm-management --rolename manage-users',
+    ], ' '),
+    unless  => join([
+      '/opt/keycloak/bin/kcadm-wrapper.sh get-roles', "-r ${realm}",
+      '--uusername service-account-auth-silo',
+      '--cclientid realm-management | grep -q manage-users',
+    ], ' '),
     require => Keycloak_client['auth-silo'],
   }
 
