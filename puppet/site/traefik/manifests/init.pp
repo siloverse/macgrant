@@ -1,10 +1,22 @@
+# @summary Installs and configures the Traefik reverse proxy.
+#
+# @param binary_path
+#   Absolute path where the Traefik binary is installed.
+#
+# @param config_dir
+#   Directory containing the static Traefik configuration.
+#
+# @param dynamic_config_dir
+#   Directory containing dynamically loaded Traefik configuration.
+#
+# @param private_ip
+#   Private IP address on which Traefik exposes its entry points.
 class traefik (
   String $binary_path        = '/usr/local/bin/traefik',
   String $config_dir         = '/etc/traefik',
   String $dynamic_config_dir = '/etc/traefik/dynamic',
   String $private_ip         = '192.168.56.10',
 ) {
-
   group { 'traefik':
     ensure => present,
     system => true,
@@ -49,10 +61,10 @@ class traefik (
     group   => 'root',
     mode    => '0644',
     content => epp('traefik/traefik.service.epp', {
-      'binary_path' => $binary_path,
-      'config_file' => "${config_dir}/traefik.yml",
+        'binary_path' => $binary_path,
+        'config_file' => "${config_dir}/traefik.yml",
     }),
-    notify => Exec['reload-traefik-systemd'],
+    notify  => Exec['reload-traefik-systemd'],
   }
   file { '/etc/traefik/certs':
     ensure  => directory,
@@ -99,8 +111,8 @@ class traefik (
     group   => 'traefik',
     mode    => '0640',
     content => epp('traefik/traefik.yml.epp', {
-      'dynamic_config_dir' => $dynamic_config_dir,
-      'private_ip'         => $private_ip,
+        'dynamic_config_dir' => $dynamic_config_dir,
+        'private_ip'         => $private_ip,
     }),
     require => File[$config_dir],
     notify  => Service['traefik'],
