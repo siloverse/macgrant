@@ -11,5 +11,12 @@ class { 'redis_server':
 }
 
 include local_dns
-include postgres
-include keycloak_server
+
+class { 'postgres':
+  hostname => "postgres.${domain}",
+  require  => Class['traefik'],
+}
+
+class { 'keycloak_server':
+  require => Class['postgres'],
+}

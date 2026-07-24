@@ -17,6 +17,9 @@ entryPoints:
   redis:
     address: "<%= $private_ip %>:6379"
 
+  postgres:
+    address: "<%= $private_ip %>:5432"
+
 providers:
   file:
     directory: "<%= $dynamic_config_dir %>"

@@ -36,6 +36,11 @@ Open Keycloak at:
 Fully restart Chrome with `chrome://restart` if it still shows a certificate
 warning.
 
+PostgreSQL is available from both the host and the VM at
+`postgres.macgrant-platform.test:5432`. PostgreSQL itself listens only on the
+VM loopback interface; Traefik proxies host connections from the VM's private
+interface.
+
 ## Development Credentials
 
 | Service | Username | Password |
