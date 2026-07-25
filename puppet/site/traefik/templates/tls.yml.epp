@@ -1,4 +1,8 @@
+<%- |
+  String $certificate_file,
+  String $certificate_key,
+| -%>
 tls:
   certificates:
-    - certFile: "/etc/traefik/certs/macgrant-platform.test.crt"
-      keyFile: "/etc/traefik/certs/macgrant-platform.test.key"
+    - certFile: "<%= $certificate_file %>"
+      keyFile: "<%= $certificate_key %>"

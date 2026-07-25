@@ -1,15 +1,21 @@
 <%- |
   String $route_name,
   String $entry_point,
-  String $target
+  String $target,
+  String $rule,
+  Boolean $tls_passthrough,
 | -%>
 tcp:
   routers:
     <%= $route_name %>:
       entryPoints:
         - <%= $entry_point %>
-      rule: "HostSNI(`*`)"
+      rule: "<%= $rule %>"
       service: <%= $route_name %>
+<% if $tls_passthrough { -%>
+      tls:
+        passthrough: true
+<% } -%>
 
   services:
     <%= $route_name %>:

@@ -1,7 +1,7 @@
 /puppet/modules
 /.idea
 /.vagrant
-/.local-certs
+/.local-certs/*
 /.ai
 /.vscode
 puppet/**/.github/

@@ -1,0 +1,17 @@
+---
+# Credentials in this file are only for the disposable local development VM.
+profile::postgres::postgres_password: '123123'
+profile::postgres::tinyurl_user: tinyurl_user
+profile::postgres::tinyurl_password: tinyurl_password
+profile::postgres::keycloak_user: keycloak_user
+profile::postgres::keycloak_password: keycloak_password
+
+profile::redis::password: secret
+
+profile::keycloak::admin_user: admin
+profile::keycloak::admin_password: changeme
+profile::keycloak::db_user: keycloak_user
+profile::keycloak::db_password: keycloak_password
+profile::keycloak::db_host: postgres.macgrant-platform.test
+profile::keycloak::db_port: 5432
+profile::keycloak::db_name: keycloak

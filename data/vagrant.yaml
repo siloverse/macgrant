@@ -1,0 +1,29 @@
+---
+macgrant::domain: macgrant-platform.test
+macgrant::vm_ip: 192.168.56.10
+macgrant::host_ip: 192.168.56.1
+
+profile::dns::domain: macgrant-platform.test
+profile::dns::vm_ip: 192.168.56.10
+
+profile::gateway::private_ip: 192.168.56.10
+profile::gateway::certificate_name: macgrant-platform.test
+profile::gateway::certificate_source_crt: file:///vagrant/.local-certs/macgrant-platform.test.crt
+profile::gateway::certificate_source_key: file:///vagrant/.local-certs/macgrant-platform.test.key
+profile::gateway::tcp_entry_points:
+  redis: 6379
+  postgres: 5432
+
+profile::postgres::hostname: postgres.macgrant-platform.test
+profile::postgres::bind: 127.0.0.1
+profile::postgres::port: 5432
+profile::postgres::route_entry_point: postgres
+
+profile::redis::hostname: redis.macgrant-platform.test
+profile::redis::bind: 127.0.0.1
+profile::redis::port: 6379
+profile::redis::route_entry_point: redis
+
+profile::keycloak::hostname: keycloak.macgrant-platform.test
+profile::keycloak::http_host: 127.0.0.1
+profile::keycloak::http_port: 8080
