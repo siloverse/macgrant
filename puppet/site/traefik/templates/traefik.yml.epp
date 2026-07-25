@@ -1,6 +1,7 @@
 <%- |
   String $dynamic_config_dir,
-  String $private_ip
+  String $private_ip,
+  Hash[String, Integer] $tcp_entry_points,
 | -%>
 entryPoints:
   web:
@@ -13,12 +14,11 @@ entryPoints:
 
   websecure:
     address: ":443"
+<% $tcp_entry_points.each |String $name, Integer $port| { -%>
 
-  redis:
-    address: "<%= $private_ip %>:6379"
-
-  postgres:
-    address: "<%= $private_ip %>:5432"
+  <%= $name %>:
+    address: "<%= $private_ip %>:<%= $port %>"
+<% } -%>
 
 providers:
   file:

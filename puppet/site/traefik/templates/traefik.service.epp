@@ -1,6 +1,7 @@
 <%- |
   String $binary_path,
-  String $config_file
+  String $config_file,
+  String $data_dir,
 | -%>
 [Unit]
 Description=Traefik reverse proxy
@@ -12,7 +13,7 @@ Wants=network-online.target
 Type=simple
 User=traefik
 Group=traefik
-WorkingDirectory=/var/lib/traefik
+WorkingDirectory=<%= $data_dir %>
 
 ExecStart=<%= $binary_path %> --configFile=<%= $config_file %>
 

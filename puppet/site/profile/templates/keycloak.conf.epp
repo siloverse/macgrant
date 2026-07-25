@@ -1,0 +1,24 @@
+<%- |
+  String $hostname,
+  String $http_host,
+  Integer $http_port,
+  String $db_host,
+  Integer $db_port,
+  String $db_name,
+  String $db_user,
+  String $db_password,
+| -%>
+# File managed by Puppet, do not edit
+hostname=https://<%= $hostname %>
+http-enabled=true
+http-host=<%= $http_host %>
+http-port=<%= $http_port %>
+http-relative-path=/
+db=postgres
+db-url-host=<%= $db_host %>
+db-url-port=<%= $db_port %>
+db-url-database=<%= $db_name %>
+db-username=<%= $db_user %>
+db-password=<%= $db_password %>
+proxy-headers=xforwarded
+proxy-trusted-addresses=<%= $http_host %>
