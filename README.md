@@ -98,5 +98,15 @@ vagrant halt                  # Stop the VM
 vagrant destroy -f            # Delete the VM
 ```
 
-Puppet configuration is under `puppet/site`. Local certificates are ignored
-by Git; never commit `.local-certs` or mkcert's `rootCA-key.pem`.
+## Puppet Modules
+
+Modules under `puppet/site` are intentionally minimal private modules, not
+independent PDK projects. Their runtime configuration remains in `manifests`
+and `templates`.
+
+Forge dependencies are downloaded by `scripts/install-puppet-modules.sh` into
+the ignored `puppet/modules` directory. The environment is validated through
+Puppet parsing and actual Vagrant provisioning.
+
+Local certificates are ignored by Git; never commit `.local-certs` or mkcert's
+`rootCA-key.pem`.
