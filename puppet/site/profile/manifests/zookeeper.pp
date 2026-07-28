@@ -41,6 +41,24 @@ class profile::zookeeper (
     ensure => installed,
   }
 
+  package { 'libjetty9-java':
+    ensure  => installed,
+    require => Package['zookeeperd'],
+  }
+
+  file { '/etc/default/zookeeper':
+    ensure  => file,
+    owner   => 'root',
+    group   => 'root',
+    mode    => '0644',
+    content => epp('profile/zookeeper-default.epp'),
+    require => [
+      Package['zookeeperd'],
+      Package['libjetty9-java'],
+    ],
+    notify  => Service['zookeeper'],
+  }
+
   file { $data_dir:
     ensure  => directory,
     owner   => 'zookeeper',
@@ -58,6 +76,7 @@ class profile::zookeeper (
     ],
     before  => Service['zookeeper'],
   }
+
   file { '/etc/zookeeper/conf/zoo.cfg':
     ensure  => file,
     owner   => 'root',
@@ -82,7 +101,9 @@ class profile::zookeeper (
     enable  => true,
     require => [
       Package['zookeeperd'],
+      Package['libjetty9-java'],
       File['/etc/zookeeper/conf/zoo.cfg'],
+      File['/etc/default/zookeeper'],
     ],
   }
 
