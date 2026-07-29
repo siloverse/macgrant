@@ -1,0 +1,12 @@
+<%- |
+  Stdlib::IP::Address $amqp_address,
+  Stdlib::Port $amqp_port,
+  Stdlib::IP::Address $management_address,
+  Stdlib::Port $management_port,
+| -%>
+## Managed by Puppet.
+
+listeners.tcp.1 = <%= $amqp_address %>:<%= $amqp_port %>
+
+management.tcp.ip = <%= $management_address %>
+management.tcp.port = <%= $management_port %>
