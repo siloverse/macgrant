@@ -5,11 +5,17 @@ class profile::postgres (
   Stdlib::Port $port,
   String[1] $route_entry_point,
   String[1] $postgres_password,
-  Hash[String[1], Struct[{
-    username => String[1],
-    password => String[1],
-  }]] $postgres_dbs = {},
+  Hash $keycloak_db,
+  Hash $siloverse_db,
 ) {
+
+  # pg_hba: one line per role↔database pair, no catch-all — the connection
+  # layer refuses wrong-database attempts before SQL grants are consulted.
+  $silo_acls = $siloverse_db['schemas'].map |$silo, $cfg| {
+    "host ${siloverse_db['db']} ${cfg['username']} 127.0.0.1/32 scram-sha-256"
+  }
+  $keycloak_acl = "host ${keycloak_db['db']} ${keycloak_db['username']} 127.0.0.1/32 scram-sha-256"
+
   class { 'postgresql::server':
     listen_addresses           => $bind,
     port                       => $port,
@@ -27,11 +33,63 @@ class profile::postgres (
     ip     => '127.0.0.1',
   }
 
-  $postgres_dbs.each |String[1] $db_name, Hash $db| {
-    postgresql::server::db { $db_name:
-      user     => $db['username'],
-      owner    => $db['username'],
-      password => postgresql::postgresql_password($db['username'], $db['password']),
+  # ---- keycloak: its own database, unchanged pattern -----------------------
+  postgresql::server::db { $keycloak_db['db']:
+    user     => $keycloak_db['username'],
+    owner    => $keycloak_db['username'],
+    password => postgresql::postgresql_password($keycloak_db['username'], $keycloak_db['password']),
+  }
+
+  # ---- siloverse: shared database, schema-per-silo -------------------------
+  postgresql::server::database { $siloverse_db['db']: }
+
+  # Close PUBLIC's default CONNECT/TEMP. Idempotency probe: keycloak's role
+  # has no direct grant here, so it can connect only via PUBLIC — once it
+  # cannot, the revoke is in place.
+  postgresql_psql { 'revoke public access on silos database':
+    command => "REVOKE CONNECT, TEMPORARY ON DATABASE ${siloverse_db['db']} FROM PUBLIC",
+    unless  => "SELECT 1 WHERE NOT has_database_privilege('${keycloak_db['username']}', '${siloverse_db['db']}
+      ', 'CONNECT')",
+    require => [
+      Postgresql::Server::Database[$siloverse_db['db']],
+      Postgresql::Server::Db[$keycloak_db['db']],
+    ],
+  }
+  # No shared surface: cross-silo objects must have nowhere convenient to live.
+  postgresql_psql { 'drop public schema in silos database':
+    db      => $siloverse_db['db'],
+    command => 'DROP SCHEMA public',
+    onlyif  => "SELECT 1 FROM pg_namespace WHERE nspname = 'public'",
+    require => Postgresql::Server::Database[$siloverse_db['db']],
+  }
+
+  $siloverse_db['schemas'].each |String $silo, Hash $cfg| {
+    $role = $cfg['username']
+
+    postgresql::server::role { $role:
+      password_hash => postgresql::postgresql_password($role, $cfg['password']),
+    }
+
+    postgresql::server::database_grant { "${role}-connect":
+      privilege => 'CONNECT',
+      db        => $siloverse_db['db'],
+      role      => $role,
+      require   => [Postgresql::Server::Role[$role], Postgresql::Server::Database[$siloverse_db['db']]],
+    }
+
+    postgresql::server::schema { $silo:
+      db      => $siloverse_db['db'],
+      owner   => $role,
+      require => [Postgresql::Server::Role[$role], Postgresql::Server::Database[$siloverse_db['db']]],
+    }
+
+    postgresql_psql { "${silo} search_path":
+      command => "ALTER ROLE \"${role}\" SET search_path = ${silo}",
+      unless  => join([
+        'SELECT 1 FROM pg_db_role_setting s JOIN pg_roles r ON r.oid = s.setrole',
+        "WHERE r.rolname = '${role}' AND 'search_path=${silo}' = ANY (s.setconfig)",
+      ], ' '),
+      require => Postgresql::Server::Role[$role],
     }
   }
 
