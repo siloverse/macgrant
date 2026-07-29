@@ -1,0 +1,4 @@
+<%- | String[1] $package_version | -%>
+Package: rabbitmq-server
+Pin: version <%= $package_version %>
+Pin-Priority: 1001

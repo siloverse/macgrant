@@ -14,6 +14,7 @@ profile::gateway::tcp_entry_points:
   redis: 6379
   postgres: 5432
   zookeeper: 2181
+  rabbitmq: 5672
 
 profile::postgres::hostname: postgres.macgrant-platform.test
 profile::postgres::bind: 127.0.0.1
@@ -36,3 +37,12 @@ profile::zookeeper::data_dir: /var/lib/zookeeper
 profile::zookeeper::admin_address: 127.0.0.1
 profile::zookeeper::admin_port: 8081
 profile::zookeeper::route_entry_point: zookeeper
+
+profile::rabbitmq::hostname: rabbitmq.macgrant-platform.test
+
+profile::rabbitmq::amqp_address: 127.0.0.1
+profile::rabbitmq::amqp_port: 5672
+profile::rabbitmq::route_entry_point: rabbitmq
+
+profile::rabbitmq::management_address: 127.0.0.1
+profile::rabbitmq::management_port: 15672
