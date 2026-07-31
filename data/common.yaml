@@ -37,7 +37,7 @@ profile::keycloak_realm::test_user_lastname: User
 
 profile::rabbitmq::username: admin
 profile::rabbitmq::password: admin
-profile::rabbitmq::vhost: macgrant
+profile::rabbitmq::vhost: siloverse
 
 profile::grafana::admin_user: admin
 profile::grafana::admin_password: replace-with-local-admin-password
