@@ -78,6 +78,9 @@ profile::grafana::prometheus_url: http://127.0.0.1:9090
 profile::grafana::prometheus_scrape_interval: 15s
 
 profile::prometheus::hostname: "prometheus.%{lookup('macgrant::domain')}"
+# alias (not lookup): preserves the hash structure — the registry stays single-sourced
+profile::prometheus::backend_services: "%{alias('profile::backend::services')}"
+profile::prometheus::backend_target_ip: "%{lookup('macgrant::host_ip')}"
 profile::prometheus::listen_address: 127.0.0.1
 profile::prometheus::port: 9090
 profile::prometheus::retention_time: 7d

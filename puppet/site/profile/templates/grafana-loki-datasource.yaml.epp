@@ -16,3 +16,12 @@ datasources:
     jsonData:
       timeout: 60
       maxLines: 1000
+
+      # log line -> its trace: trace_id arrives as OTLP structured metadata (a field, not line text)
+      derivedFields:
+        - name: TraceID
+          matcherType: label
+          matcherRegex: trace_id
+          url: '$${__value.raw}'
+          datasourceUid: tempo
+          urlDisplayLabel: 'View trace'
