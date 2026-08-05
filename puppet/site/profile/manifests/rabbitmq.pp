@@ -39,7 +39,6 @@ class profile::rabbitmq (
   }
 
   package { [
-    'curl',
     'gnupg',
     'apt-transport-https',
   ]:
