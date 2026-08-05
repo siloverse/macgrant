@@ -67,3 +67,8 @@ profile::prometheus::listen_address: 127.0.0.1
 profile::prometheus::port: 9090
 profile::prometheus::retention_time: 7d
 profile::prometheus::retention_size: 2GB
+profile::prometheus::node_exporter_address: 127.0.0.1
+profile::prometheus::node_exporter_port: 9100
+
+profile::node_exporter::listen_address: 127.0.0.1
+profile::node_exporter::port: 9100

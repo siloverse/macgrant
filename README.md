@@ -2,8 +2,8 @@
 
 This repository provisions a disposable Ubuntu development VM with Vagrant
 and Puppet. It runs PostgreSQL, Redis, ZooKeeper, RabbitMQ, Keycloak, Tempo,
-OpenTelemetry Collector Contrib, Prometheus, Grafana, dnsmasq, and Traefik on
-the host-only network at `192.168.56.10`.
+OpenTelemetry Collector Contrib, Prometheus Node Exporter, Prometheus, Grafana,
+dnsmasq, and Traefik on the host-only network at `192.168.56.10`.
 
 ## Prerequisites
 
@@ -338,6 +338,32 @@ done
 $found || { echo "Trace $trace_id was not found in Tempo" >&2; exit 1; }
 ```
 
+## Prometheus Node Exporter
+
+`profile::node_exporter` installs Prometheus Node Exporter from the official
+release archive. The archive is cached under `/var/cache/macgrant/packages`,
+verified against the SHA-256 checksum pinned in `data/versions.yaml`, and
+extracted below `/opt`. The `node_exporter` binary is linked into
+`/usr/local/bin`. The current default is Node Exporter `1.12.1` for
+`linux_amd64`.
+
+Node Exporter runs as the dedicated `node_exporter` system user and listens
+only on `127.0.0.1:9100`; it is not exposed through Traefik. Prometheus scrapes
+this endpoint every 15 seconds to collect operating-system and hardware
+metrics. The textfile collector reads additional metrics from
+`/var/lib/node_exporter/textfile_collector`.
+
+Check the service and metrics endpoint from the host with:
+
+```bash
+vagrant ssh -c "systemctl is-active node_exporter"
+vagrant ssh -c "curl -fsS http://127.0.0.1:9100/metrics >/dev/null"
+```
+
+Adjust the listener or textfile collector directory through
+`profile::node_exporter` parameters in `data/vagrant.yaml`. Change the pinned
+version and checksum in `data/versions.yaml`.
+
 ## Prometheus
 
 `profile::prometheus` installs Prometheus for metrics collection. The profile
@@ -355,10 +381,12 @@ and 2 GB.
 
 The web and metrics listener binds only to `127.0.0.1:9090`. Traefik publishes
 the UI at <https://prometheus.macgrant-platform.test>. Every 15 seconds,
-Prometheus scrapes itself, OpenTelemetry Collector metrics on
-`127.0.0.1:8888`, Tempo metrics on `127.0.0.1:3200`, and Grafana metrics on
-`127.0.0.1:3000`. The configuration adds `platform=macgrant` and
-`environment=local` external labels and a `component` label to each target.
+Prometheus scrapes itself, Node Exporter metrics on `127.0.0.1:9100`,
+OpenTelemetry Collector metrics on `127.0.0.1:8888`, Tempo metrics on
+`127.0.0.1:3200`, and Grafana metrics on `127.0.0.1:3000`. The configuration
+adds `platform=macgrant` and `environment=local` external labels and a
+`component` label to each target. The Node Exporter target also receives the
+label `node=macgrant-platform`.
 
 Validate the service, configuration, and HTTPS route from the host with:
 
@@ -399,7 +427,7 @@ The entry manifest contains only:
 include role::platform
 ```
 
-`role::platform` composes twelve profiles:
+`role::platform` composes thirteen profiles:
 
 - `profile::common`
 - `profile::dns`
@@ -411,14 +439,16 @@ include role::platform
 - `profile::rabbitmq`
 - `profile::tempo`
 - `profile::opentelemetry_collector`
+- `profile::node_exporter`
 - `profile::prometheus`
 - `profile::grafana`
 
 `profile::common` installs the packages more than one profile depends on, such
 as `curl`, and is ordered before the profiles that use them. The observability
-services follow the dependency chain Tempo, OpenTelemetry Collector,
-Prometheus, then Grafana. The rest compose Forge modules and declare each
-service's routing intent.
+services are ordered so Tempo precedes OpenTelemetry Collector, both the
+Collector and Node Exporter precede Prometheus, and Prometheus precedes
+Grafana. The rest compose Forge modules and declare each service's routing
+intent.
 The generic `traefik` module owns the gateway user, directories, certificates,
 static configuration, dynamic-route format, systemd unit, and service.
 
@@ -565,7 +595,7 @@ vagrant status
 vagrant ssh -c \
   "systemctl is-active \
     dnsmasq postgresql redis zookeeper rabbitmq-server tempo \
-    otelcol-contrib prometheus grafana-server keycloak traefik"
+    otelcol-contrib node_exporter prometheus grafana-server keycloak traefik"
 ```
 
 Check DNS:
