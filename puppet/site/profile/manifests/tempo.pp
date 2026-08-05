@@ -44,21 +44,6 @@ class profile::tempo (
     mode   => '0755',
   }
 
-  file { '/var/cache/macgrant':
-    ensure => directory,
-    owner  => 'root',
-    group  => 'root',
-    mode   => '0755',
-  }
-
-  file { $package_cache_dir:
-    ensure  => directory,
-    owner   => 'root',
-    group   => 'root',
-    mode    => '0755',
-    require => File['/var/cache/macgrant'],
-  }
-
   exec { "download-tempo-${version}":
     command => "/usr/bin/curl --fail --location --silent --show-error --output ${package_path} ${release_url}/${package_filename}",
     creates => $package_path,
