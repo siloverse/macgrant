@@ -4,6 +4,9 @@ profile::rabbitmq::erlang_version_pattern: 1:27.*
 profile::tempo::version: 3.0.2
 profile::opentelemetry_collector::version: 0.157.0
 
+profile::loki::version: "3.7.5"
+profile::loki::sha256: "a9c5fe93f75dcc8bbbdda651d61ab226990de23058d8c80c7abf01d36288d8d7"
+
 profile::grafana::version: 13.1.2
 profile::grafana::prometheus_version: 3.13.2
 profile::grafana::package_revision: "30900078095"

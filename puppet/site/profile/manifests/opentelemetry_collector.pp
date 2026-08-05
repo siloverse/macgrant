@@ -1,7 +1,7 @@
 # @summary Installs and configures OpenTelemetry Collector Contrib.
 #
 # The Collector receives OTLP telemetry from applications and forwards
-# traces to Grafana Tempo.
+# traces to Grafana Tempo and logs to Grafana Loki.
 class profile::opentelemetry_collector (
   String[1] $version,
   Stdlib::Host $hostname                         = 'otel.macgrant-platform.test',
@@ -10,6 +10,7 @@ class profile::opentelemetry_collector (
   Stdlib::Port $otlp_http_port                   = 4318,
   String[1] $grpc_route_entry_point              = 'otel_grpc',
   String[1] $tempo_endpoint                      = '127.0.0.1:4327',
+  String[1] $loki_endpoint                       = 'http://127.0.0.1:3100/otlp',
   Stdlib::IP::Address $health_address            = '127.0.0.1',
   Stdlib::Port $health_port                      = 13133,
   Stdlib::IP::Address $metrics_address           = '127.0.0.1',
@@ -122,6 +123,7 @@ class profile::opentelemetry_collector (
       'metrics_address'        => $metrics_address,
       'metrics_port'           => $metrics_port,
       'tempo_endpoint'         => $tempo_endpoint,
+      'loki_endpoint'          => $loki_endpoint,
       'memory_limit_mib'       => $memory_limit_mib,
       'memory_spike_limit_mib' => $memory_spike_limit_mib,
     }),

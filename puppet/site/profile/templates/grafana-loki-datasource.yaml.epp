@@ -1,0 +1,18 @@
+<%- |
+  String $loki_url
+| -%>
+apiVersion: 1
+
+datasources:
+  - name: Loki
+    uid: loki
+    type: loki
+    access: proxy
+    url: <%= $loki_url %>
+    basicAuth: false
+    isDefault: false
+    editable: false
+
+    jsonData:
+      timeout: 60
+      maxLines: 1000

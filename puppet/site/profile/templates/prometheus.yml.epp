@@ -11,6 +11,8 @@
   Integer $collector_metrics_port,
   String $tempo_metrics_address,
   Integer $tempo_metrics_port,
+  String $loki_metrics_address,
+  Integer $loki_metrics_port,
   String $grafana_metrics_address,
   Integer $grafana_metrics_port,
 | -%>
@@ -75,3 +77,12 @@ scrape_configs:
 
         labels:
           component: grafana
+
+  - job_name: loki
+
+    static_configs:
+      - targets:
+          - "<%= $loki_metrics_address %>:<%= $loki_metrics_port %>"
+
+        labels:
+          component: loki
