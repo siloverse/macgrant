@@ -54,3 +54,8 @@ profile::opentelemetry_collector::otlp_grpc_port: 4317
 profile::opentelemetry_collector::otlp_http_port: 4318
 profile::opentelemetry_collector::grpc_route_entry_point: otel_grpc
 profile::opentelemetry_collector::tempo_endpoint: 127.0.0.1:4327
+
+profile::grafana::hostname: grafana.macgrant-platform.test
+profile::grafana::http_address: 127.0.0.1
+profile::grafana::http_port: 3000
+profile::grafana::tempo_url: http://127.0.0.1:3200

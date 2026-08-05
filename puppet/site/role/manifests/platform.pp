@@ -10,6 +10,8 @@ class role::platform {
   contain profile::rabbitmq
   include profile::tempo
   contain profile::opentelemetry_collector
+  contain profile::grafana
+
   Class['profile::common'] -> Class['profile::rabbitmq']
   Class['profile::common'] -> Class['profile::tempo']
   Class['profile::gateway'] -> Class['profile::postgres']
@@ -19,4 +21,5 @@ class role::platform {
   Class['profile::gateway'] -> Class['profile::opentelemetry_collector']
   Class['profile::postgres'] -> Class['profile::keycloak']
   Class['profile::tempo'] -> Class['profile::opentelemetry_collector']
+  Class['profile::tempo'] -> Class['profile::grafana']
 }
