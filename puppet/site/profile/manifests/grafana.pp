@@ -25,6 +25,10 @@ class profile::grafana (
   Stdlib::Absolutepath $plugins_dir = '/var/lib/grafana/plugins',
 
   Stdlib::Absolutepath $package_cache_dir = '/var/cache/macgrant/packages',
+
+  String[1] $prometheus_url = 'http://127.0.0.1:9090',
+  String[1] $prometheus_version = '3.13.2',
+  String[1] $prometheus_scrape_interval = '15s',
 ) {
   $package_filename =
     "grafana_${version}_${package_revision}_linux_${architecture}.deb"
@@ -189,6 +193,29 @@ class profile::grafana (
     notify => Service['grafana-server'],
   }
 
+  file { "${datasources_dir}/prometheus.yaml":
+    ensure => file,
+    owner  => 'root',
+    group  => 'grafana',
+    mode   => '0640',
+
+    content => epp(
+      'profile/grafana-prometheus-datasource.yaml.epp',
+      {
+        'prometheus_url'             => $prometheus_url,
+        'prometheus_version'         => $prometheus_version,
+        'scrape_interval'            => $prometheus_scrape_interval,
+      },
+    ),
+
+    require => [
+      Package['grafana'],
+      File[$datasources_dir],
+    ],
+
+    notify => Service['grafana-server'],
+  }
+
   service { 'grafana-server':
     ensure => running,
     enable => true,
@@ -196,6 +223,7 @@ class profile::grafana (
     require => [
       File["${config_dir}/grafana.ini"],
       File["${datasources_dir}/tempo.yaml"],
+      File["${datasources_dir}/prometheus.yaml"],
     ],
   }
 

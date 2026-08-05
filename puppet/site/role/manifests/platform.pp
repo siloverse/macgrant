@@ -11,6 +11,7 @@ class role::platform {
   include profile::tempo
   contain profile::opentelemetry_collector
   contain profile::grafana
+  contain profile::prometheus
 
   Class['profile::common'] -> Class['profile::rabbitmq']
   Class['profile::common'] -> Class['profile::tempo']
@@ -22,4 +23,7 @@ class role::platform {
   Class['profile::postgres'] -> Class['profile::keycloak']
   Class['profile::tempo'] -> Class['profile::opentelemetry_collector']
   Class['profile::tempo'] -> Class['profile::grafana']
+  Class['profile::opentelemetry_collector'] -> Class['profile::prometheus']
+  Class['profile::tempo'] -> Class['profile::prometheus']
+  Class['profile::prometheus'] -> Class['profile::grafana']
 }

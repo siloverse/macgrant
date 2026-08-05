@@ -2,8 +2,8 @@
 
 This repository provisions a disposable Ubuntu development VM with Vagrant
 and Puppet. It runs PostgreSQL, Redis, ZooKeeper, RabbitMQ, Keycloak, Tempo,
-Grafana, OpenTelemetry Collector Contrib, dnsmasq, and Traefik on the host-only
-network at `192.168.56.10`.
+OpenTelemetry Collector Contrib, Prometheus, Grafana, dnsmasq, and Traefik on
+the host-only network at `192.168.56.10`.
 
 ## Prerequisites
 
@@ -93,6 +93,7 @@ Memory:      6144 MB
 | ZooKeeper AdminServer | <https://zookeeper.macgrant-platform.test/commands> |
 | RabbitMQ AMQP | `amqp://admin:admin@rabbitmq.macgrant-platform.test:5672/macgrant` |
 | RabbitMQ management | <https://rabbitmq.macgrant-platform.test> |
+| Prometheus | <https://prometheus.macgrant-platform.test> |
 | Grafana | <https://grafana.macgrant-platform.test> |
 | OTLP/HTTP | <https://otel.macgrant-platform.test/v1/traces> |
 | OTLP/gRPC | `otel.macgrant-platform.test:4317` |
@@ -219,11 +220,11 @@ parameters in `data/vagrant.yaml`.
 
 ## Grafana
 
-`profile::grafana` installs Grafana for exploring traces stored in Tempo. The
-official Debian package is downloaded into `/var/cache/macgrant/packages` and
-verified against the SHA-256 checksum pinned with its version and package
-revision in `data/versions.yaml`. The current default is Grafana `13.1.2` for
-`linux_amd64`.
+`profile::grafana` installs Grafana for exploring metrics from Prometheus and
+traces stored in Tempo. The official Debian package is downloaded into
+`/var/cache/macgrant/packages` and verified against the SHA-256 checksum pinned
+with its version and package revision in `data/versions.yaml`. The current
+default is Grafana `13.1.2` for `linux_amd64`.
 
 Grafana listens only on `127.0.0.1:3000`. Traefik publishes the browser UI at
 <https://grafana.macgrant-platform.test>, while Grafana stores its state in a
@@ -231,12 +232,17 @@ local SQLite database with write-ahead logging under `/var/lib/grafana`.
 Anonymous access, user sign-up, and Grafana analytics and update checks are
 disabled.
 
-Puppet provisions a non-editable Tempo data source with UID `tempo`, pointing
-to Tempo's loopback HTTP API at `http://127.0.0.1:3200`. No data-source setup is
-required after signing in. The disposable development login defaults to
-`admin` with password `replace-with-local-admin-password`; change the Grafana
-credentials and 32-or-more-character secret key in `data/common.yaml` before
-using the VM.
+Puppet provisions two non-editable data sources, so no data-source setup is
+required after signing in:
+
+- Prometheus is the default data source, has UID `prometheus`, and uses
+  `http://127.0.0.1:9090` with a `15s` scrape interval.
+- Tempo has UID `tempo` and uses its loopback HTTP API at
+  `http://127.0.0.1:3200`.
+
+The disposable development login defaults to `admin` with password
+`replace-with-local-admin-password`; change the Grafana credentials and
+32-or-more-character secret key in `data/common.yaml` before using the VM.
 
 Check the service and HTTPS route from the host with:
 
@@ -245,8 +251,8 @@ vagrant ssh -c "systemctl is-active grafana-server"
 curl -fsS https://grafana.macgrant-platform.test/api/health
 ```
 
-Adjust the hostname, listener, or Tempo URL through `profile::grafana`
-parameters in `data/vagrant.yaml`.
+Adjust the hostname, listener, data-source URLs, or Prometheus scrape interval
+through `profile::grafana` parameters in `data/vagrant.yaml`.
 
 ## OpenTelemetry Collector
 
@@ -332,6 +338,40 @@ done
 $found || { echo "Trace $trace_id was not found in Tempo" >&2; exit 1; }
 ```
 
+## Prometheus
+
+`profile::prometheus` installs Prometheus for metrics collection. The profile
+downloads the official release archive into `/var/cache/macgrant/packages`,
+verifies its pinned SHA-256 checksum, and extracts it below `/opt`. The
+`prometheus` and `promtool` binaries are linked into `/usr/local/bin`. The
+version is pinned in `data/versions.yaml`; the current default is `3.13.2` for
+`linux_amd64`.
+
+Prometheus runs as the dedicated `prometheus` system user, stores its time
+series under `/var/lib/prometheus`, and reads the Puppet-managed
+`/etc/prometheus/prometheus.yml`. Puppet validates configuration changes with
+`promtool` before installing them. The default retention limits are seven days
+and 2 GB.
+
+The web and metrics listener binds only to `127.0.0.1:9090`. Traefik publishes
+the UI at <https://prometheus.macgrant-platform.test>. Every 15 seconds,
+Prometheus scrapes itself, OpenTelemetry Collector metrics on
+`127.0.0.1:8888`, Tempo metrics on `127.0.0.1:3200`, and Grafana metrics on
+`127.0.0.1:3000`. The configuration adds `platform=macgrant` and
+`environment=local` external labels and a `component` label to each target.
+
+Validate the service, configuration, and HTTPS route from the host with:
+
+```bash
+vagrant ssh -c "systemctl is-active prometheus"
+vagrant ssh -c \
+  "sudo -u prometheus promtool check config /etc/prometheus/prometheus.yml"
+curl -fsS https://prometheus.macgrant-platform.test/-/ready
+```
+
+Adjust the hostname, listener, scrape intervals, retention limits, or target
+addresses through `profile::prometheus` parameters in `data/vagrant.yaml`.
+
 ## DNS
 
 The `profile::dns` class manages dnsmasq and renders
@@ -359,7 +399,7 @@ The entry manifest contains only:
 include role::platform
 ```
 
-`role::platform` composes eleven profiles:
+`role::platform` composes twelve profiles:
 
 - `profile::common`
 - `profile::dns`
@@ -371,11 +411,14 @@ include role::platform
 - `profile::rabbitmq`
 - `profile::tempo`
 - `profile::opentelemetry_collector`
+- `profile::prometheus`
 - `profile::grafana`
 
 `profile::common` installs the packages more than one profile depends on, such
-as `curl`, and is ordered before the profiles that use them. The rest compose
-Forge modules and declare each service's routing intent.
+as `curl`, and is ordered before the profiles that use them. The observability
+services follow the dependency chain Tempo, OpenTelemetry Collector,
+Prometheus, then Grafana. The rest compose Forge modules and declare each
+service's routing intent.
 The generic `traefik` module owns the gateway user, directories, certificates,
 static configuration, dynamic-route format, systemd unit, and service.
 
@@ -522,7 +565,7 @@ vagrant status
 vagrant ssh -c \
   "systemctl is-active \
     dnsmasq postgresql redis zookeeper rabbitmq-server tempo \
-    otelcol-contrib grafana-server keycloak traefik"
+    otelcol-contrib prometheus grafana-server keycloak traefik"
 ```
 
 Check DNS:
@@ -540,6 +583,7 @@ curl -fsS \
   https://keycloak.macgrant-platform.test/realms/master/.well-known/openid-configuration |
   jq -r .issuer
 curl -fsS https://zookeeper.macgrant-platform.test/commands/ruok
+curl -fsS https://prometheus.macgrant-platform.test/-/ready
 curl -fsS https://grafana.macgrant-platform.test/api/health
 ```
 
