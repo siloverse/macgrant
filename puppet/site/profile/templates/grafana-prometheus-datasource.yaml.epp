@@ -1,0 +1,22 @@
+<%- |
+  String $prometheus_url,
+  String $prometheus_version,
+  String $scrape_interval
+| -%>
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: <%= $prometheus_url %>
+    basicAuth: false
+    isDefault: true
+    editable: false
+
+    jsonData:
+      httpMethod: POST
+      prometheusType: Prometheus
+      prometheusVersion: "<%= $prometheus_version %>"
+      timeInterval: <%= $scrape_interval %>
