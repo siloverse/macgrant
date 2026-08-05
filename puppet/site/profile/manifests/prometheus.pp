@@ -25,6 +25,9 @@ class profile::prometheus (
   Stdlib::IP::Address $tempo_metrics_address = '127.0.0.1',
   Stdlib::Port $tempo_metrics_port = 3200,
 
+  Stdlib::IP::Address $loki_metrics_address = '127.0.0.1',
+  Stdlib::Port $loki_metrics_port = 3100,
+
   Stdlib::IP::Address $grafana_metrics_address = '127.0.0.1',
   Stdlib::Port $grafana_metrics_port = 3000,
 
@@ -168,6 +171,8 @@ class profile::prometheus (
       'collector_metrics_port'   => $collector_metrics_port,
       'tempo_metrics_address'    => $tempo_metrics_address,
       'tempo_metrics_port'       => $tempo_metrics_port,
+      'loki_metrics_address'     => $loki_metrics_address,
+      'loki_metrics_port'        => $loki_metrics_port,
       'grafana_metrics_address'  => $grafana_metrics_address,
       'grafana_metrics_port'     => $grafana_metrics_port,
     }),
