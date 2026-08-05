@@ -3,3 +3,7 @@ profile::rabbitmq::rabbitmq_package_version: 4.3.4-1
 profile::rabbitmq::erlang_version_pattern: 1:27.*
 profile::tempo::version: 3.0.2
 profile::opentelemetry_collector::version: 0.157.0
+
+profile::grafana::version: 13.1.2
+profile::grafana::package_revision: "30900078095"
+profile::grafana::sha256: "3ba6a81a7a4b1832791457058ce07551df94c3979f544bff4db886e638110644"

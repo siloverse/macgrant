@@ -1,0 +1,63 @@
+<%- |
+  String $hostname,
+  String $http_address,
+  Integer $http_port,
+  String $admin_user,
+  String $admin_password,
+  String $secret_key,
+  String $data_dir,
+  String $logs_dir,
+  String $plugins_dir,
+  String $provisioning_dir
+| -%>
+[paths]
+data = <%= $data_dir %>
+logs = <%= $logs_dir %>
+plugins = <%= $plugins_dir %>
+provisioning = <%= $provisioning_dir %>
+
+[server]
+protocol = http
+http_addr = <%= $http_address %>
+http_port = <%= $http_port %>
+domain = <%= $hostname %>
+enforce_domain = false
+root_url = https://<%= $hostname %>/
+serve_from_sub_path = false
+enable_gzip = true
+router_logging = false
+
+[database]
+type = sqlite3
+path = <%= $data_dir %>/grafana.db
+wal = true
+
+[security]
+admin_user = <%= $admin_user %>
+admin_password = """<%= $admin_password %>"""
+secret_key = """<%= $secret_key %>"""
+cookie_secure = true
+cookie_samesite = strict
+disable_gravatar = true
+allow_embedding = false
+
+[users]
+allow_sign_up = false
+allow_org_create = false
+auto_assign_org = true
+auto_assign_org_role = Viewer
+
+[auth.anonymous]
+enabled = false
+
+[analytics]
+reporting_enabled = false
+check_for_updates = false
+check_for_plugin_updates = false
+
+[log]
+mode = console
+level = info
+
+[metrics]
+enabled = true
