@@ -1,3 +1,4 @@
 ---
 profile::rabbitmq::rabbitmq_package_version: 4.3.4-1
 profile::rabbitmq::erlang_version_pattern: 1:27.*
+profile::tempo::version: 3.0.2

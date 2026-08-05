@@ -1,0 +1,48 @@
+<%- |
+  String $listen_address,
+  Integer $http_port,
+  Integer $internal_grpc_port,
+  Integer $otlp_grpc_port,
+  Integer $otlp_http_port,
+  String $data_dir,
+  String $runtime_dir,
+  String $retention
+| -%>
+stream_over_http_enabled: true
+
+server:
+  http_listen_address: "<%= $listen_address %>"
+  http_listen_port: <%= $http_port %>
+  grpc_listen_address: "<%= $listen_address %>"
+  grpc_listen_port: <%= $internal_grpc_port %>
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: "<%= $listen_address %>:<%= $otlp_grpc_port %>"
+        http:
+          endpoint: "<%= $listen_address %>:<%= $otlp_http_port %>"
+
+storage:
+  trace:
+    backend: local
+    wal:
+      path: <%= $data_dir %>/wal
+    local:
+      path: <%= $data_dir %>/blocks
+
+backend_scheduler:
+  local_work_path: <%= $runtime_dir %>
+  provider:
+    compaction:
+      compaction:
+        block_retention: <%= $retention %>
+
+backend_worker:
+  compaction:
+    block_retention: <%= $retention %>
+
+usage_report:
+  reporting_enabled: false
