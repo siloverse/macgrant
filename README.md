@@ -689,7 +689,6 @@ These credentials are committed only for the disposable local VM:
 | PostgreSQL admin | `postgres` | `123123` |
 | Redis | - | `secret` |
 | Keycloak database | `keycloak_user` | `keycloak_password` |
-| TinyURL database | `tinyurl_user` | `tinyurl_password` |
 | Grafana | `admin` | `replace-with-local-admin-password` |
 
 Do not reuse them outside local development.

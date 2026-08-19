@@ -15,6 +15,7 @@ class role::platform {
   contain profile::node_exporter
   contain profile::prometheus
   contain profile::grafana
+  contain profile::keycloak_realm
 
   Class['profile::common'] -> Class['profile::rabbitmq']
   Class['profile::common'] -> Class['profile::tempo']
@@ -26,6 +27,7 @@ class role::platform {
   Class['profile::gateway'] -> Class['profile::rabbitmq']
   Class['profile::gateway'] -> Class['profile::opentelemetry_collector']
   Class['profile::postgres'] -> Class['profile::keycloak']
+  Class['profile::keycloak'] -> Class['profile::keycloak_realm']
 
   Class['profile::tempo'] -> Class['profile::opentelemetry_collector']
   Class['profile::tempo'] -> Class['profile::prometheus']
