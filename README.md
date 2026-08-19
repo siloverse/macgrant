@@ -593,14 +593,18 @@ profile::backend::services:
   notification-silo: 10201
 ```
 
-Each service must bind its registered port on the host-only interface and
-declare the same port in its Spring Boot `application.yml`:
+Each service declares only its registered port in its Spring Boot
+`application.yml` and keeps Spring's default bind address (all interfaces),
+which includes the host-only interface the gateway forwards to:
 
 ```yaml
 server:
-  address: 192.168.56.1
   port: 10001
 ```
+
+No service configures an IP address; the host-only addresses are owned by
+this repository (`macgrant::vm_ip` / `macgrant::host_ip` in
+`data/vagrant.yaml`).
 
 Services call each other through the stable gateway URLs, for example
 `https://user-silo.macgrant-platform.test`, so no caller ever configures a
