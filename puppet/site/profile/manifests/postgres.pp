@@ -5,10 +5,10 @@ class profile::postgres (
   Stdlib::Port $port,
   String[1] $route_entry_point,
   String[1] $postgres_password,
-  String[1] $tinyurl_user,
-  String[1] $tinyurl_password,
-  String[1] $keycloak_user,
-  String[1] $keycloak_password,
+  Hash[String[1], Struct[{
+    username => String[1],
+    password => String[1],
+  }]] $postgres_dbs = {},
 ) {
   class { 'postgresql::server':
     listen_addresses           => $bind,
@@ -27,15 +27,12 @@ class profile::postgres (
     ip     => '127.0.0.1',
   }
 
-  postgresql::server::db { 'tinyurl':
-    user     => $tinyurl_user,
-    password => postgresql::postgresql_password($tinyurl_user, $tinyurl_password),
-  }
-
-  postgresql::server::db { 'keycloak':
-    user     => $keycloak_user,
-    owner    => $keycloak_user,
-    password => postgresql::postgresql_password($keycloak_user, $keycloak_password),
+  $postgres_dbs.each |String[1] $db_name, Hash $db| {
+    postgresql::server::db { $db_name:
+      user     => $db['username'],
+      owner    => $db['username'],
+      password => postgresql::postgresql_password($db['username'], $db['password']),
+    }
   }
 
   traefik::tcp_route { 'postgres':
