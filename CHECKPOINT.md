@@ -20,10 +20,12 @@ _Last updated: 2026-08-20. This document is the arbiter: if Claude asserts somet
 - **Realm `kyc` exists as code** (`profile::keycloak_realm`): discovery endpoint answers, `issuer == https://keycloak.macgrant-platform.test/realms/kyc`. Nonexistent realm → 404/`null` issuer (the shape of a typo'd `issuer-uri`).
 - Single-source-of-truth refactor verified behavior-neutral: Puppet re-run applied the catalog with zero resource changes.
 
-## In flight (Phase 1)
+## Phase 1 — COMPLETE (2026-08-20), all verifies passed
 
-- Done & verified: confidential clients (client_credentials tokens mint for all three), explicit `default_client_scopes => ['basic','roles']`, `web-cli` public client + test user `awais` (password-grant token verified).
-- Still to do: `manage-users` grant to auth-silo's service account (kcadm exec; `keycloak_role_mapping` only does realm roles on users), `user_silo`/`notification_silo` databases.
+- Realm `kyc` + roles, three confidential clients (deny-by-default flows, `default_client_scopes => ['basic','roles']`), `web-cli` public client (DAG, + profile/email scopes), test user via `partial_import`, `manage-users` → auth-silo SA via idempotent kcadm exec (`unless`-guarded; quiet on second run).
+- Token-verified: SA token carries `resource_access.realm-management.roles: [manage-users]` and `aud` gained `realm-management` (audience-resolve mapper) — the exact claim Keycloak's admin API authorizes by in Phase 3.
+- `user_silo`/`notification_silo` databases + owners; verified from the host: `psql` → `select 1` through wildcard DNS → Traefik TCP entrypoint → loopback Postgres.
+- Full idempotency proven: second provision after clean recreation = zero notices.
 
 ### Phase 1 lessons (Reflect answers, 2026-08-19/20)
 
@@ -35,7 +37,7 @@ _Last updated: 2026-08-20. This document is the arbiter: if Claude asserts somet
 
 ## Parked
 
-- **dnsmasq leaks VM-internal loopback answers to the host** — the `host { ... ip => '127.0.0.1' }` blocks in service profiles feed dnsmasq (reads /etc/hosts by default), so the host resolves postgres/redis/zookeeper/rabbitmq/otel hostnames to its own loopback. WILL bite Phase 4/5 (host-side JDBC/AMQP). Fix: `no-hosts` in dnsmasq config; VM-local resolution keeps working via nsswitch (`files` first).
+- ~~dnsmasq leaked VM-internal loopback answers to the host~~ **RESOLVED 2026-08-20**: bit during Phase 1.5 exactly as predicted (host psql → `postgres.… (127.0.0.1)` connection refused). Fixed with `no-hosts` in dnsmasq.conf.epp — dnsmasq stops serving /etc/hosts over the network; VM-internal processes still resolve those names via nsswitch `files` (loopback, bypassing Traefik). Two resolution worlds, cleanly separated: inside = hosts file, outside = wildcard. Remember `resolvectl flush-caches` on the host after DNS-behavior changes.
 - Grafana placeholder `admin_password` + `secret_key` in common.yaml (plan task 8.4).
 - siloverse-build: `io.spring.dependency-management` in the spring-boot-application convention breaks Gradle's configuration cache (pom.withXml captures Project) and is redundant — the platform already imports the Boot BOM. Fix = delete it, bump 1.10.1.
 - Vagrantfile literals `config.vm.hostname` and cert-preflight paths could derive from `macgrant::domain`; left as-is (YAGNI — revisit only if the domain ever changes).
