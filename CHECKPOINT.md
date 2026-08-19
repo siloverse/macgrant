@@ -1,6 +1,6 @@
 # CHECKPOINT — macgrant local platform
 
-_Last updated: 2026-08-19. This document is the arbiter: if Claude asserts something about this repo that isn't here or visible in the code, call it — that's drift._
+_Last updated: 2026-08-20. This document is the arbiter: if Claude asserts something about this repo that isn't here or visible in the code, call it — that's drift._
 
 **Goal:** one-VM local platform (Vagrant + Puppet + Traefik + Keycloak + observability stack) hosting the siloverse learning apps. Design constraint: exactly one machine, YAGNI throughout — this exists to learn DDD, event-driven architecture, distributed microservices/observability/CI-CD on a laptop.
 
@@ -22,8 +22,16 @@ _Last updated: 2026-08-19. This document is the arbiter: if Claude asserts somet
 
 ## In flight (Phase 1)
 
-- Confidential clients auth-silo/user-silo/notification-silo (secrets → common.yaml) — written, not yet provisioned/verified.
-- Still to do: `web-cli` public client (Direct Access Grants) + test user (via `keycloak::partial_import`; module has no user type), `manage-users` grant to auth-silo's service account (kcadm exec; `keycloak_role_mapping` only does realm roles on users), `user_silo`/`notification_silo` databases.
+- Done & verified: confidential clients (client_credentials tokens mint for all three), explicit `default_client_scopes => ['basic','roles']`, `web-cli` public client + test user `awais` (password-grant token verified).
+- Still to do: `manage-users` grant to auth-silo's service account (kcadm exec; `keycloak_role_mapping` only does realm roles on users), `user_silo`/`notification_silo` databases.
+
+### Phase 1 lessons (Reflect answers, 2026-08-19/20)
+
+- **Claims are mapper output, not facts.** Clients start with NO scopes under the treydock provider (declarative completeness) → near-naked tokens (`scope: ""`, no roles claim). Claims appear only when a client scope's protocol mappers put them there.
+- **Service vs user token, field by field:** `sub` = SA-user UUID vs person UUID; `azp` = the client (auth-silo vs web-cli — tool, not identity); profile claims exist only for humans AND only with profile/email scopes; `sid` only for user logins (SSO session); `aud: account` appeared on the SA token via the roles scope's audience-resolve mapper (composite default role → account client roles), absent on the user token (import set exactly `realmRoles: ["user"]`, no default composite).
+- **`scope` claim ≠ assigned scopes:** `basic`/`roles` have include-in-token-scope OFF (mapper bundles, not OAuth scopes); `profile email` show up because theirs is ON.
+- **OIDC standard claims are flat and top-level** (interop); `realm_access`/`resource_access` are Keycloak-specific nesting — the exact reason Phase 2 needs a hand-written JwtAuthenticationConverter.
+- **`partial_import` with SKIP is create-only** — it does not converge drift (unlike the realm/client types). Paid for it: user created without firstName/lastName → password grant refused with `invalid_grant: Account is not fully set up` (direct grant has no UI for required actions; KC 26 user profile requires first/last name). Fix required deleting the user and re-importing.
 
 ## Parked
 
@@ -31,3 +39,4 @@ _Last updated: 2026-08-19. This document is the arbiter: if Claude asserts somet
 - Grafana placeholder `admin_password` + `secret_key` in common.yaml (plan task 8.4).
 - siloverse-build: `io.spring.dependency-management` in the spring-boot-application convention breaks Gradle's configuration cache (pom.withXml captures Project) and is redundant — the platform already imports the Boot BOM. Fix = delete it, bump 1.10.1.
 - Vagrantfile literals `config.vm.hostname` and cert-preflight paths could derive from `macgrant::domain`; left as-is (YAGNI — revisit only if the domain ever changes).
+- **`Keycloak_client[...]/secret: created secret` fires on EVERY provision — known, accepted.** Mechanism: the treydock provider only reads a client's secret when the client JSON has no `name` field (heuristic to skip built-in clients), but KC 26.5 returns `name` = clientId for module-created clients, so the secret is never read, current=absent, and Puppet re-PUTs the same hiera value each run. Harmless (converges, auto-corrects drift) but noisy — this resource is exempt from the "zero-change run = behavior-neutral" test. Revisit: check newer treydock releases for a fixed heuristic before ever patching the vendored module.
