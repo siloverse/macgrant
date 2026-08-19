@@ -3,6 +3,7 @@ class role::platform {
   contain profile::common
   contain profile::dns
   contain profile::gateway
+  contain profile::backend
   contain profile::postgres
   contain profile::redis
   contain profile::keycloak
@@ -18,6 +19,7 @@ class role::platform {
   Class['profile::common'] -> Class['profile::rabbitmq']
   Class['profile::common'] -> Class['profile::tempo']
   Class['profile::common'] -> Class['profile::loki']
+  Class['profile::gateway'] -> Class['profile::backend']
   Class['profile::gateway'] -> Class['profile::postgres']
   Class['profile::gateway'] -> Class['profile::redis']
   Class['profile::gateway'] -> Class['profile::zookeeper']
