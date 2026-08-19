@@ -3,13 +3,13 @@ macgrant::domain: macgrant-platform.test
 macgrant::vm_ip: 192.168.56.10
 macgrant::host_ip: 192.168.56.1
 
-profile::dns::domain: macgrant-platform.test
-profile::dns::vm_ip: 192.168.56.10
+profile::dns::domain: "%{lookup('macgrant::domain')}"
+profile::dns::vm_ip: "%{lookup('macgrant::vm_ip')}"
 
-profile::gateway::private_ip: 192.168.56.10
-profile::gateway::certificate_name: macgrant-platform.test
-profile::gateway::certificate_source_crt: file:///vagrant/.local-certs/macgrant-platform.test.crt
-profile::gateway::certificate_source_key: file:///vagrant/.local-certs/macgrant-platform.test.key
+profile::gateway::private_ip: "%{lookup('macgrant::vm_ip')}"
+profile::gateway::certificate_name: "%{lookup('macgrant::domain')}"
+profile::gateway::certificate_source_crt: "file:///vagrant/.local-certs/%{lookup('macgrant::domain')}.crt"
+profile::gateway::certificate_source_key: "file:///vagrant/.local-certs/%{lookup('macgrant::domain')}.key"
 profile::gateway::tcp_entry_points:
   redis: 6379
   postgres: 5432
@@ -17,28 +17,28 @@ profile::gateway::tcp_entry_points:
   rabbitmq: 5672
   otel_grpc: 4317
 
-profile::backend::domain: macgrant-platform.test
-profile::backend::target_ip: 192.168.56.1
+profile::backend::domain: "%{lookup('macgrant::domain')}"
+profile::backend::target_ip: "%{lookup('macgrant::host_ip')}"
 profile::backend::services:
   auth-silo: 10001
   user-silo: 10101
   notification-silo: 10201
 
-profile::postgres::hostname: postgres.macgrant-platform.test
+profile::postgres::hostname: "postgres.%{lookup('macgrant::domain')}"
 profile::postgres::bind: 127.0.0.1
 profile::postgres::port: 5432
 profile::postgres::route_entry_point: postgres
 
-profile::redis::hostname: redis.macgrant-platform.test
+profile::redis::hostname: "redis.%{lookup('macgrant::domain')}"
 profile::redis::bind: 127.0.0.1
 profile::redis::port: 6379
 profile::redis::route_entry_point: redis
 
-profile::keycloak::hostname: keycloak.macgrant-platform.test
+profile::keycloak::hostname: "keycloak.%{lookup('macgrant::domain')}"
 profile::keycloak::http_host: 127.0.0.1
 profile::keycloak::http_port: 8080
 
-profile::zookeeper::hostname: zookeeper.macgrant-platform.test
+profile::zookeeper::hostname: "zookeeper.%{lookup('macgrant::domain')}"
 profile::zookeeper::client_address: 127.0.0.1
 profile::zookeeper::client_port: 2181
 profile::zookeeper::data_dir: /var/lib/zookeeper
@@ -46,7 +46,7 @@ profile::zookeeper::admin_address: 127.0.0.1
 profile::zookeeper::admin_port: 8081
 profile::zookeeper::route_entry_point: zookeeper
 
-profile::rabbitmq::hostname: rabbitmq.macgrant-platform.test
+profile::rabbitmq::hostname: "rabbitmq.%{lookup('macgrant::domain')}"
 
 profile::rabbitmq::amqp_address: 127.0.0.1
 profile::rabbitmq::amqp_port: 5672
@@ -55,7 +55,7 @@ profile::rabbitmq::route_entry_point: rabbitmq
 profile::rabbitmq::management_address: 127.0.0.1
 profile::rabbitmq::management_port: 15672
 
-profile::opentelemetry_collector::hostname: otel.macgrant-platform.test
+profile::opentelemetry_collector::hostname: "otel.%{lookup('macgrant::domain')}"
 profile::opentelemetry_collector::listen_address: 127.0.0.1
 profile::opentelemetry_collector::otlp_grpc_port: 4317
 profile::opentelemetry_collector::otlp_http_port: 4318
@@ -69,7 +69,7 @@ profile::loki::grpc_address: 127.0.0.1
 profile::loki::grpc_port: 9096
 profile::loki::retention_period: 168h
 
-profile::grafana::hostname: grafana.macgrant-platform.test
+profile::grafana::hostname: "grafana.%{lookup('macgrant::domain')}"
 profile::grafana::http_address: 127.0.0.1
 profile::grafana::http_port: 3000
 profile::grafana::tempo_url: http://127.0.0.1:3200
@@ -77,7 +77,7 @@ profile::grafana::loki_url: http://127.0.0.1:3100
 profile::grafana::prometheus_url: http://127.0.0.1:9090
 profile::grafana::prometheus_scrape_interval: 15s
 
-profile::prometheus::hostname: prometheus.macgrant-platform.test
+profile::prometheus::hostname: "prometheus.%{lookup('macgrant::domain')}"
 profile::prometheus::listen_address: 127.0.0.1
 profile::prometheus::port: 9090
 profile::prometheus::retention_time: 7d
