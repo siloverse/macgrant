@@ -34,6 +34,7 @@ _Last updated: 2026-08-20. This document is the arbiter: if Claude asserts somet
 - **`scope` claim ≠ assigned scopes:** `basic`/`roles` have include-in-token-scope OFF (mapper bundles, not OAuth scopes); `profile email` show up because theirs is ON.
 - **OIDC standard claims are flat and top-level** (interop); `realm_access`/`resource_access` are Keycloak-specific nesting — the exact reason Phase 2 needs a hand-written JwtAuthenticationConverter.
 - **`partial_import` with SKIP is create-only** — it does not converge drift (unlike the realm/client types). Paid for it: user created without firstName/lastName → password grant refused with `invalid_grant: Account is not fully set up` (direct grant has no UI for required actions; KC 26 user profile requires first/last name). Fix required deleting the user and re-importing.
+- **Signing (final Reflect, answered 2026-08-20):** realm `kyc` holds an RSA key pair; tokens are RS256-signed with the private key (never leaves Keycloak). Verifiers fetch the PUBLIC halves from `jwks_uri` (verified: `has_private_parts: false`; token header `kid` matches the JWKS `sig` key). Public key can verify but not forge — that's why the JWKS is safely public, why resource servers validate tokens locally without calling Keycloak (only an unknown `kid` after rotation triggers a refetch), and why asymmetric beats HS256 with multiple verifiers (a shared secret would let any silo mint identities). Same asymmetry as mkcert: signer keeps the private key, verifiers get the public one.
 
 ## Parked
 
