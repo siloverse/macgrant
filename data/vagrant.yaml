@@ -17,6 +17,13 @@ profile::gateway::tcp_entry_points:
   rabbitmq: 5672
   otel_grpc: 4317
 
+profile::backend::domain: macgrant-platform.test
+profile::backend::target_ip: 192.168.56.1
+profile::backend::services:
+  auth-silo: 10001
+  user-silo: 10101
+  notification-silo: 10201
+
 profile::postgres::hostname: postgres.macgrant-platform.test
 profile::postgres::bind: 127.0.0.1
 profile::postgres::port: 5432
