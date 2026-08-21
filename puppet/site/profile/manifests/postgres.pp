@@ -83,14 +83,6 @@ class profile::postgres (
       require => [Postgresql::Server::Role[$role], Postgresql::Server::Database[$siloverse_db['db']]],
     }
 
-    postgresql_psql { "${silo} search_path":
-      command => "ALTER ROLE \"${role}\" SET search_path = ${silo}",
-      unless  => join([
-        'SELECT 1 FROM pg_db_role_setting s JOIN pg_roles r ON r.oid = s.setrole',
-        "WHERE r.rolname = '${role}' AND 'search_path=${silo}' = ANY (s.setconfig)",
-      ], ' '),
-      require => Postgresql::Server::Role[$role],
-    }
   }
 
   traefik::tcp_route { 'postgres':
