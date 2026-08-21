@@ -1,16 +1,19 @@
 ---
 # Credentials in this file are only for the disposable local development VM.
 profile::postgres::postgres_password: '123123'
-profile::postgres::postgres_dbs:
-  keycloak:
-    username: keycloak_user
-    password: keycloak_password
-  user-silo:
-    username: user-silo
-    password: user-silo
-  notification-silo:
-    username: notification-silo
-    password: notification-silo
+profile::postgres::keycloak_db:
+  db: keycloak
+  username: keycloak_user
+  password: keycloak_password
+profile::postgres::siloverse_db:
+  db: siloverse
+  schemas:
+    user_silo:
+      username: user-silo
+      password: user-silo
+    notification_silo:
+      username: notification-silo
+      password: notification-silo
 
 profile::redis::password: secret
 
