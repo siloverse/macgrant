@@ -15,3 +15,25 @@ datasources:
 
     jsonData:
       httpMethod: GET
+
+      # span -> the exact log lines of this trace (trace_id is OTLP structured metadata in Loki)
+      tracesToLogsV2:
+        datasourceUid: loki
+        spanStartTimeShift: "-5m"
+        spanEndTimeShift: "5m"
+        customQuery: true
+        query: '{service_namespace="macgrant"} | trace_id = "${__trace.traceId}"'
+
+      # span -> the service's RED metrics around the span's moment
+      tracesToMetrics:
+        datasourceUid: prometheus
+        spanStartTimeShift: "-2m"
+        spanEndTimeShift: "2m"
+        tags:
+          - key: service.name
+            value: job
+        queries:
+          - name: "Request rate"
+            query: 'sum(rate(http_server_requests_seconds_count{$__tags}[5m]))'
+          - name: "p95 latency"
+            query: 'histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{$__tags}[5m])) by (le))'

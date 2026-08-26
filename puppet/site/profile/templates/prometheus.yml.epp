@@ -15,6 +15,9 @@
   Integer $loki_metrics_port,
   String $grafana_metrics_address,
   Integer $grafana_metrics_port,
+  Hash[String, Integer] $backend_services,
+  Optional[String] $backend_target_ip,
+  String $backend_metrics_path,
 | -%>
 global:
   scrape_interval: <%= $scrape_interval %>
@@ -86,3 +89,15 @@ scrape_configs:
 
         labels:
           component: loki
+<%- $backend_services.each |$backend_name, $backend_port| { -%>
+
+  - job_name: <%= $backend_name %>
+    metrics_path: <%= $backend_metrics_path %>
+
+    static_configs:
+      - targets:
+          - "<%= $backend_target_ip %>:<%= $backend_port %>"
+
+        labels:
+          component: backend-service
+<%- } -%>
