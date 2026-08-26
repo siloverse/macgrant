@@ -31,6 +31,12 @@ class profile::prometheus (
   Stdlib::IP::Address $grafana_metrics_address = '127.0.0.1',
   Stdlib::Port $grafana_metrics_port = 3000,
 
+  # Backend services scraped on the HOST (registry aliased from profile::backend::services --
+  # single source of truth; see plan task 8.8 for the fuller service-contract design).
+  Hash[String[1], Stdlib::Port] $backend_services = {},
+  Optional[Stdlib::IP::Address] $backend_target_ip = undef,
+  String[1] $backend_metrics_path = '/actuator/prometheus',
+
   Enum['amd64', 'arm64'] $architecture = 'amd64',
 
   Stdlib::Absolutepath $config_dir = '/etc/prometheus',
@@ -175,6 +181,9 @@ class profile::prometheus (
       'loki_metrics_port'        => $loki_metrics_port,
       'grafana_metrics_address'  => $grafana_metrics_address,
       'grafana_metrics_port'     => $grafana_metrics_port,
+      'backend_services'         => $backend_services,
+      'backend_target_ip'        => $backend_target_ip,
+      'backend_metrics_path'     => $backend_metrics_path,
     }),
 
     validate_cmd => "${install_dir}/promtool check config %",
