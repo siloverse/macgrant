@@ -86,12 +86,13 @@ Memory:      6144 MB
 | Service | Endpoint |
 | --- | --- |
 | Keycloak | <https://keycloak.macgrant-platform.test> |
-| Keycloak issuer | <https://keycloak.macgrant-platform.test/realms/master> |
-| PostgreSQL | `jdbc:postgresql://postgres.macgrant-platform.test:5432/keycloak` |
+| Keycloak issuer (realm `kyc`) | <https://keycloak.macgrant-platform.test/realms/kyc> |
+| PostgreSQL (silos) | `jdbc:postgresql://postgres.macgrant-platform.test:5432/siloverse?currentSchema=<silo_schema>` |
+| PostgreSQL (Keycloak) | `jdbc:postgresql://postgres.macgrant-platform.test:5432/keycloak` |
 | Redis | `redis://redis.macgrant-platform.test:6379` |
 | ZooKeeper | `zookeeper.macgrant-platform.test:2181` |
 | ZooKeeper AdminServer | <https://zookeeper.macgrant-platform.test/commands> |
-| RabbitMQ AMQP | `amqp://admin:admin@rabbitmq.macgrant-platform.test:5672/macgrant` |
+| RabbitMQ AMQP | `amqp://admin:admin@rabbitmq.macgrant-platform.test:5672/siloverse` |
 | RabbitMQ management | <https://rabbitmq.macgrant-platform.test> |
 | Prometheus | <https://prometheus.macgrant-platform.test> |
 | Grafana | <https://grafana.macgrant-platform.test> |
@@ -180,7 +181,8 @@ AMQP listens only on `127.0.0.1:5672`, while the management UI listens only on
 entry point and publishes the management UI over trusted HTTPS.
 
 The disposable development account is `admin` with password `admin`. It has
-administrator privileges and full permissions on the `macgrant` vhost. Puppet
+administrator privileges and full permissions on the `siloverse` vhost (the platform
+name, like the shared database). Puppet
 removes RabbitMQ's default `guest` account after configuring this account.
 Change the values under `profile::rabbitmq` in `data/common.yaml` if different
 local credentials or a different vhost are required.
@@ -457,7 +459,10 @@ the UI at <https://prometheus.macgrant-platform.test>. Every 15 seconds,
 Prometheus scrapes itself, Node Exporter metrics on `127.0.0.1:9100`,
 OpenTelemetry Collector metrics on `127.0.0.1:8888`, Tempo metrics on
 `127.0.0.1:3200`, Loki metrics on `127.0.0.1:3100`, and Grafana metrics on
-`127.0.0.1:3000`. The configuration
+`127.0.0.1:3000`. It also scrapes every registered backend service on the
+development host at `/actuator/prometheus` (`profile::prometheus::backend_services`
+aliases the `profile::backend::services` registry in `data/vagrant.yaml`, so a
+service registered once is routed and scraped). The configuration
 adds `platform=macgrant` and `environment=local` external labels and a
 `component` label to each target. The Node Exporter target also receives the
 label `node=macgrant-platform`.
@@ -579,12 +584,43 @@ Bind the host process specifically to `192.168.56.1:3000` and allow that
 host-only interface through the host firewall. Do not expose the development
 service on public interfaces.
 
+## Keycloak Realm
+
+`profile::keycloak_realm` declares the platform's identity model as code, separate
+from the server profile because the two change for different reasons. One provision
+recreates it from nothing:
+
+- realm `kyc` with realm roles `customer` (registered humans), `employee`
+  (operational humans) and `system` (machines);
+- one confidential client per backend service (`auth-silo`, `user-silo`,
+  `notification-silo`), service-account only, every interactive flow disabled; each
+  service account holds `system`; auth-silo's additionally holds the realm-management
+  grants `manage-users` and `view-realm` for registration;
+- a public `web-cli` client with direct-access grants for test-only password logins;
+- a test user, imported with `partial_import` (create-only; it does not converge drift).
+
+Discovery: <https://keycloak.macgrant-platform.test/realms/kyc/.well-known/openid-configuration>.
+Client secrets live in `data/common.yaml`; they are disposable and rotated when leaked.
+
+## PostgreSQL
+
+`profile::postgres` manages two databases: `keycloak`, owned by Keycloak, and
+`siloverse`, shared by the backend services with one schema per silo
+(`user_silo`, `notification_silo`), declared under `profile::postgres::siloverse_db`.
+Each silo connects as its own login role (hyphenated platform identity, `user-silo`)
+and owns only its schema (underscored SQL identifier, `user_silo`); `CONNECT` on
+`siloverse` is revoked from `PUBLIC`, the `public` schema is dropped, and no
+cross-schema grants exist. The environment grants the space, Flyway in each silo
+creates the tables. Applications name the schema explicitly (`currentSchema` on the
+JDBC URL, qualified DDL); no role carries a pinned `search_path`.
+
 ## Backend Services
 
 `profile::backend` exposes every registered backend service at
 `https://<name>.macgrant-platform.test` and forwards it to the process
 running on the development host. The registry in `data/vagrant.yaml` is the
-single source of truth for service names and ports:
+single source of truth for service names and ports, and the Prometheus scrape
+configuration reads the same registry:
 
 ```yaml
 profile::backend::services:
@@ -689,6 +725,10 @@ These credentials are committed only for the disposable local VM:
 | PostgreSQL admin | `postgres` | `123123` |
 | Redis | - | `secret` |
 | Keycloak database | `keycloak_user` | `keycloak_password` |
+| Keycloak realm `kyc` test user | `test_user` | `123123` |
+| `siloverse` database, schema `user_silo` | `user-silo` | `user-silo` |
+| `siloverse` database, schema `notification_silo` | `notification-silo` | `notification-silo` |
+| RabbitMQ (vhost `siloverse`) | `admin` | `admin` |
 | Grafana | `admin` | `replace-with-local-admin-password` |
 
 Do not reuse them outside local development.

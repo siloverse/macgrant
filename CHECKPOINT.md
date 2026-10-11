@@ -1,8 +1,16 @@
 # CHECKPOINT — macgrant local platform
 
-_Last updated: 2026-08-20. This document is the arbiter: if Claude asserts something about this repo that isn't here or visible in the code, call it — that's drift._
+_Last updated: 2026-10-11. This document is the arbiter: if Claude asserts something about this repo that isn't here or visible in the code, call it — that's drift._
 
 **Goal:** one-VM local platform (Vagrant + Puppet + Traefik + Keycloak + observability stack) hosting the siloverse learning apps. Design constraint: exactly one machine, YAGNI throughout — this exists to learn DDD, event-driven architecture, distributed microservices/observability/CI-CD on a laptop.
+
+## State at merge to main (2026-10-11)
+
+- Branch `temporary-proxy` (2026-08-19 to 2026-08-27) merged: single-source-of-truth network facts, Keycloak version pin, realm `kyc` as code with the three-role model and service clients, auth-silo SA grants, Postgres restructured to the shared `siloverse` database with schema-per-silo (search_path removed), RabbitMQ vhost renamed `siloverse`, Prometheus scraping the backend registry, Loki and Tempo wired into Grafana, the CHECKPOINT journal.
+- Nothing to release: this repo is applied, not published.
+- Resolved since the parked list below was written: the siloverse-build `io.spring.dependency-management` removal (shipped as 1.10.1). Still parked: Grafana placeholder credentials (plan 8.4), the `partial_import` content-change trigger, Vagrantfile literals.
+- Still open from the platform plan: 6.5 Grafana "Registration flow" dashboard, 8.7 RabbitMQ least privilege per silo, 8.8 `macgrant::backend_service` service contract as code, 7.x postgres_exporter.
+- The "realm roles `['user','admin']`" bullet under Locked decisions is superseded by the role-model bullet further down: the roles are `customer`, `employee`, `system`.
 
 ## Locked decisions
 
@@ -49,6 +57,6 @@ _Last updated: 2026-08-20. This document is the arbiter: if Claude asserts somet
 - Grafana placeholder `admin_password` + `secret_key` in common.yaml (plan task 8.4).
 - **Puppet quoted strings absorb line breaks (2026-08-20, cost: lost manage-users grant + a failing exec for days).** Wrapping an exec `command`/`unless` across lines for readability embedded a literal newline → the shell ran it as a two-line script (`sh: 2: --uusername: not found`). The broken `unless` always failed → exec always attempted → always errored, so the self-healing grant re-add was down exactly when a client recreation discarded the SA's grants. Fix: build wrapped commands with `join([...], ' ')` (the keycloak module's own idiom). Rule: exec commands are single logical lines; readability wrapping goes through join, never a bare quoted-string line break. (`keycloak_role_mapping` was suspected of stripping client roles — acquitted by the two-provision experiment.)
 - **`partial_import` fires on file-content change, not on state** (module wires file→notify→exec). After any future realm rebuild with UNCHANGED import content, the test user will silently not be recreated — re-touch the content or run the import by hand. (This rebuild was safe only because the content changed anyway.)
-- siloverse-build: `io.spring.dependency-management` in the spring-boot-application convention breaks Gradle's configuration cache (pom.withXml captures Project) and is redundant — the platform already imports the Boot BOM. Fix = delete it, bump 1.10.1.
+- ~~siloverse-build: `io.spring.dependency-management` in the spring-boot-application convention breaks Gradle's configuration cache (pom.withXml captures Project) and is redundant — the platform already imports the Boot BOM. Fix = delete it, bump 1.10.1.~~ DONE in siloverse-build 1.10.1.
 - Vagrantfile literals `config.vm.hostname` and cert-preflight paths could derive from `macgrant::domain`; left as-is (YAGNI — revisit only if the domain ever changes).
 - ~~`created secret` fired every provision~~ **RESOLVED 2026-08-20 — manual drift, not a module bug.** A hand-made `auth-silo` client predated the Puppet code; Puppet adopted it by clientId, but it carried a console-set `name` field. The treydock provider skips reading secrets for clients WITH a `name` (heuristic for Keycloak's built-in clients, whose names look like `${client_*}`) → secret never read → current=absent → same value re-PUT every run. Proof: the three purely module-created clients had no name key and were idempotent all along. Fix: deleted the drifted client(s), Puppet recreated from code; second provision = zero notices. Standing rules: (a) console clicks are drift — inspect in the console, change only in code; (b) never fill a client's Name field — a named client becomes secret-unreadable to the provider; (c) recreate a client only while its service account holds no grants (deletion discards the SA user and its roles; grants are code anyway, so a provision restores them).
