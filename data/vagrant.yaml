@@ -23,6 +23,8 @@ profile::backend::services:
   auth-silo: 10001
   user-silo: 10101
   notification-silo: 10201
+  brokerage: 10301
+  venue: 10401
 
 profile::postgres::hostname: "postgres.%{lookup('macgrant::domain')}"
 profile::postgres::bind: 127.0.0.1
